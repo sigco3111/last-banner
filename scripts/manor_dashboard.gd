@@ -71,8 +71,8 @@ func _find_nodes() -> void:
 		detail_vbox = detail_panel.get_node_or_null("VBox") as VBoxContainer
 		if detail_vbox:
 			detail_vbox.visible = false
-	chart_canvas = get_node_or_null("CenterRoot/LeftColumn/ManorScene/SceneHost/ChartCard/ChartCanvas") as Control
-	chart_title = get_node_or_null("CenterRoot/LeftColumn/ManorScene/SceneHost/ChartCard/ChartTitle") as Label
+	chart_canvas = get_node_or_null("CenterRoot/LeftColumn/ManorTitle/TitleHBox/ChartCardInline/ChartCanvas") as Control
+	chart_title = get_node_or_null("CenterRoot/LeftColumn/ManorTitle/TitleHBox/ChartCardInline/ChartTitle") as Label
 	if chart_canvas:
 		chart_canvas.draw.connect(_draw_chart)
 		print("[Dashboard] 차트 캔버스 연결 완료")
