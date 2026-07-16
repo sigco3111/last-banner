@@ -1,0 +1,106 @@
+[gd_scene load_steps=2 format=3 uid="uid://bmanordashboardv2"]
+
+[ext_resource type="Script" path="res://scripts/manor_dashboard.gd" id="1_dash"]
+
+[node name="ManorDashboard" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_dash")
+
+[node name="BG" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.12, 0.09, 0.07, 1)
+
+[node name="CenterRoot" type="HBoxContainer" parent="."]
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 96.0
+offset_right = -16.0
+offset_bottom = -100.0
+theme_override_constants/separation = 16
+
+[node name="LeftColumn" type="VBoxContainer" parent="CenterRoot"]
+custom_minimum_size = Vector2(760, 0)
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="ManorTitle" type="PanelContainer" parent="CenterRoot/LeftColumn"]
+custom_minimum_size = Vector2(0, 56)
+
+[node name="TitleLabel" type="Label" parent="CenterRoot/LeftColumn/ManorTitle"]
+text = "🏰 영지: 토르바르의 옥새관"
+theme_override_font_sizes/font_size = 22
+
+[node name="ManorScene" type="PanelContainer" parent="CenterRoot/LeftColumn"]
+size_flags_vertical = 3
+
+[node name="SceneHost" type="Control" parent="CenterRoot/LeftColumn/ManorScene"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="SceneRoot" type="Node2D" parent="CenterRoot/LeftColumn/ManorScene/SceneHost"]
+
+[node name="BottomRowInColumn" type="HBoxContainer" parent="CenterRoot/LeftColumn"]
+custom_minimum_size = Vector2(0, 96)
+theme_override_constants/separation = 12
+
+[node name="VisitorCard" type="PanelContainer" parent="CenterRoot/LeftColumn/BottomRowInColumn"]
+size_flags_horizontal = 3
+
+[node name="VisitorVBox" type="VBoxContainer" parent="CenterRoot/LeftColumn/BottomRowInColumn/VisitorCard"]
+
+[node name="VisitorTitle" type="Label" parent="CenterRoot/LeftColumn/BottomRowInColumn/VisitorCard/VisitorVBox"]
+text = "📜 방문객"
+theme_override_font_sizes/font_size = 16
+
+[node name="VisitorDesc" type="Label" parent="CenterRoot/LeftColumn/BottomRowInColumn/VisitorCard/VisitorVBox"]
+text = "대기 중인 방문객 없음"
+autowrap_mode = 3
+custom_minimum_size = Vector2(0, 64)
+theme_override_font_sizes/font_size = 14
+
+[node name="QuickStatsCard" type="PanelContainer" parent="CenterRoot/LeftColumn/BottomRowInColumn"]
+custom_minimum_size = Vector2(220, 0)
+
+[node name="StatsVBox" type="VBoxContainer" parent="CenterRoot/LeftColumn/BottomRowInColumn/QuickStatsCard"]
+
+[node name="StatsTitle" type="Label" parent="CenterRoot/LeftColumn/BottomRowInColumn/QuickStatsCard/StatsVBox"]
+text = "📊 일간 변동"
+theme_override_font_sizes/font_size = 14
+
+[node name="StatsGoldChange" type="Label" parent="CenterRoot/LeftColumn/BottomRowInColumn/QuickStatsCard/StatsVBox"]
+text = "💰 오늘: +0"
+theme_override_font_sizes/font_size = 14
+
+[node name="StatsFoodChange" type="Label" parent="CenterRoot/LeftColumn/BottomRowInColumn/QuickStatsCard/StatsVBox"]
+text = "🌾 오늘: +0"
+theme_override_font_sizes/font_size = 14
+
+[node name="StatsDays" type="Label" parent="CenterRoot/LeftColumn/BottomRowInColumn/QuickStatsCard/StatsVBox"]
+text = "📅 경과: 0일"
+theme_override_font_sizes/font_size = 14
+
+[node name="RightColumn" type="VBoxContainer" parent="CenterRoot"]
+custom_minimum_size = Vector2(380, 0)
+theme_override_constants/separation = 12
+
+[node name="RosterTitle" type="PanelContainer" parent="CenterRoot/RightColumn"]
+custom_minimum_size = Vector2(0, 48)
+
+[node name="RosterTitleLabel" type="Label" parent="CenterRoot/RightColumn/RosterTitle"]
+text = "⚔️ 용병"
+theme_override_font_sizes/font_size = 18
+
+[node name="RosterList" type="PanelContainer" parent="CenterRoot/RightColumn"]
+size_flags_vertical = 3
+
+[node name="RosterScroll" type="ScrollContainer" parent="CenterRoot/RightColumn/RosterList"]
+follow_focus = true
+
+[node name="RosterVBox" type="VBoxContainer" parent="CenterRoot/RightColumn/RosterList/RosterScroll"]
+theme_override_constants/separation = 6

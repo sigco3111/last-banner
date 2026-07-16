@@ -85,10 +85,7 @@ for race in humans dunefolk undead orcs; do
   fi
 done
 
-# .gdignore (pck/import 차단용 — 빌드 사이즈 줄임)
-for d in "$ASSETS_DIR"/units/*/ "$ASSETS_DIR"/portraits/*/ "$ASSETS_DIR"/; do
-  [ -d "$d" ] && touch "$d/.gdignore"
-done
+# .gdignore 제거됨 (v2는 res:// 직접 사용 — v1 lazy fetch 패턴 폐기)
 
 echo ""
 echo "==> 자산 셋업 완료"

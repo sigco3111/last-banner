@@ -1,23 +1,56 @@
 # Last Banner
 
-> **변방 영지 운영 로그라이크 전략** — Wesnoth 2D 픽토그램 양식 + 저판타지 정치 미학
-> Godot 4.7.1 · **macOS 네이티브 전용** · 자동 진행 + 결정 큐
+> **변방 영지 운영 로그라이크 전략** — Wesnoth 2D 픽토그램 양식 · CK3 정치 미학
+> **Godot 4.7.1 + macOS 네이티브 전용** · 자동 진행 + 결정 큐 · 432 Wesnoth 자산
 
-![Godot](https://img.shields.io/badge/Engine-Godot%204.7.1-478CBF?logo=godot-engine&logoColor=white)
-![Platform](https://img.shields.io/badge/Platform-macOS-000?logo=apple)
-![License](https://img.shields.io/badge/code-MIT-green)
-![Assets](https://img.shields.io/badge/assets-CC--BY--4.0%20%2F%20OFL-blue)
+[![Godot](https://img.shields.io/badge/Engine-Godot%204.7.1-478CBF?logo=godot-engine&logoColor=white)](https://godotengine.org)
+[![Platform](https://img.shields.io/badge/Platform-macOS-000?logo=apple)](https://www.apple.com/macos)
+[![License](https://img.shields.io/badge/code-MIT-green)](./LICENSE)
+[![Assets](https://img.shields.io/badge/assets-CC--BY--4.0%20%2F%20OFL-blue)](./docs/CREDITS.md)
 
 ---
 
 ## 🎮 게임 컨셉
 
-**Last Banner**는 **Wesnoth 2D 픽토그램 양식 + CK3/EU4 양식 정치 미학**의 변방 영지 운영 로그라이크 전략 게임입니다.
+**Last Banner**는 **Wesnoth 2D 픽토그램 + CK3/EU4 양식 정치 미학**의 변방 영지 운영 로그라이크 전략 게임입니다.
 
 - **시각 톤**: Wesnoth 2D 픽토그램 양식 · 저판타지 political 미학 (마법은 subtle, fireball X)
-- **메카닉**: 자원 변동 → 사건 생성 → 결정 큐 push → 사용자 결정 → 자동 진행
-- **자동 진행**: 위임하면 게임이 알아서 진행. CRITICAL 결정 시에만 정지
-- **재진입**: `user://save_*.json` 영속화 — 종료 후 다시 열어도 같은 세션
+- **메카닉**: 자원 변동 → 사건 생성 → 결정 큐 push → 모달 표시 → 자원 변동
+- **자동 진행**:
+  - **ON** (위임): LOW 3초 / MEDIUM·HIGH 5초 후 default 결정으로 자동 resolve
+  - **OFF** (대기 모드): 모달 뜨면 사용자가 직접 결정할 때까지 무한 대기
+- **재진입**: `user://save_*.json` 영속화 — Mac 종료 후 다시 열어도 같은 세션
+
+---
+
+## 🖼 화면 구성 (1280×720)
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ TopResourceBar: Day N | HH:MM | 자동 진행 | 💰 N | 🌾 N | 🪵 사건  │
+├─────────────────────────────────────────────────────────────────────┤
+│ Manor Dashboard                          ┌────────────────────┐    │
+│  ┌────────────────────────────┐         │ ⚔️ 용병 (5명)         │    │
+│  │ 토르바르의 영지 — 황야의 변방 │         │ [🖼] 토르바르 · 영주   │    │
+│  │ 풀밭 + 흙길 + 캐릭터 5명     │         │   💰 0  ★ 100      │    │
+│  │ (knight/swordsman/spearman/ │         │ [🖼] 에드윈 · 기사    │    │
+│  │  bowman/bandit PNG)        │         │ ...                 │    │
+│  └────────────────────────────┘         └────────────────────┘    │
+│  ┌─────────────────┐  ┌──────────────┐                            │
+│  │ 📜 방문객 (다음 결정) │  📊 일간 변동  │                            │
+│  └─────────────────┘  └──────────────┘                            │
+├─────────────────────────────────────────────────────────────────────┤
+│ [P: 자동 진행]  [+1일 진행]  [💾 저장]  [📂 불러오기]                  │
+└─────────────────────────────────────────────────────────────────────┘
+
+결정 모달 (별도 CanvasLayer, layer=100):
+  ┌────────────────────────────────────────┐
+  │ [우선순위] 방문객 도착                  │
+  │ "귀족이 영지를 방문했습니다..."          │
+  │ [환영 (+50골드)]  [거절 (명성 -2)]      │
+  └────────────────────────────────────────┘
+  + DimBG (검은 반투명 0.7 alpha)
+```
 
 ---
 
@@ -31,6 +64,7 @@
 | 자산 | Wesnoth 2D PNG (5 factions + portraits) | Wesnoth CC-BY-4.0 |
 | 폰트 | NanumGothic.ttf (TTF) | SIL OFL 1.1, 한글 정상 |
 | 영속화 | `user://save_*.json` | macOS = `~/Library/Application Support/` |
+| 한국어 폰트 autoload | `korean_font.gd` | preload + theme 자동 적용 |
 
 총 **432개 자산** (393 idle PNG + 39 portraits).
 
@@ -48,8 +82,6 @@ cd ~/work/last-banner
 godot --path .                    # 즉시 실행 (개발 모드)
 ```
 
-→ 1280×720 윈도우에 Last Banner 타이틀바 + 자원 카드 5개 + 자동 진행 토글 + 결정 모달.
-
 ### 정식 빌드 (.app)
 
 ```bash
@@ -58,24 +90,27 @@ godot --headless --export-release macOS    # → build/macos/Last Banner.app
 open "build/macos/Last Banner.app"          # 더블클릭과 동일
 ```
 
-빌드 산출물: `build/macos/Last Banner.app/` (≈163 MB)
+빌드 산출물: `build/macos/Last Banner.app/` (≈168 MB, 432 PNG 포함)
 
-### 헤드리스 검증
+### 헤드리스 검증 (LB_VERIFY=1)
 
 ```bash
 cd ~/work/last-banner
-LB_VERIFY=1 godot --headless    # 자동 진행 + 결정 큐 + 저장/로드 round-trip 자동 검증 (5~15초)
+LB_VERIFY=1 godot --headless    # 자동 진행 + 결정 큐 + save/load + 화면 그리기 11단계 자동 검증
 ```
 
-검증 8단계:
-1. 새 게임 초기 상태 OK
+11단계:
+1. 새 게임 초기 상태 OK (gold=200 food=100 pop=50)
 2. 1일 시뮬 (1440분)
-3. 자원 변동 확인
-4. 6일 추가 진행 → 결정 큐 자동 push
-5. PASS — 사건 생성 ✓
+3. 자원 변동
+4. 6일 추가 → 결정 큐 자동 push (자동 진행 사건 생성)
+5. PASS — 자동 진행 ✓
 6. 7일 후 자원 누적
 7. save/load round-trip
 8. 결과 적용 (VISITOR_WELCOME +30골드)
+9. ManorDashboard 화면 검증 (sprite 5 + roster avatar 5)
+10. 모달 자동 OFF 검증 — `auto_progress=OFF`에서 모달 유지됨
+11. 모달 자동 ON 검증 — `auto_progress=ON`에서 자동 결정 → 모달 닫힘
 
 ---
 
@@ -94,25 +129,43 @@ LB_VERIFY=1 godot --headless    # 자동 진행 + 결정 큐 + 저장/로드 rou
 │ KoreanFont        (preload + theme 적용)     │
 └─────────────────────────────────────────────┘
             ↓
-   ┌────────┴────────┐
-   │  Scenes (UI)    │
-   │  main.tscn      │
+   ┌────────┴───────────────┐
+   │  Scenes (UI Canvas)    │
+   │  main.tscn             │
+   │   ├─ TopResourceBar    │
+   │   ├─ ManorLayer        │ (영지 풍경도 + Roster)
+   │   ├─ BottomButtonRow   │
+   │   └─ ModalLayer (z=100)| (결정 모달 + DimBG)
 ```
 
-8 autoload + `main.tscn` 상태 허브. 모든 autoload는 `process_mode = Node.PROCESS_MODE_ALWAYS`로 일시정지 무관 동작.
+8 autoload + 메인 허브 화면. 모든 autoload는 `process_mode = Node.PROCESS_MODE_ALWAYS`로 일시정지 무관 동작.
 
-### 시그널 연결 고리
+### 시그널 연결
 
 ```
-TimeManager (autoload, _process)
-   │
-   ├─ tick_advanced.emit(game_time)
-   │     ├─► SaveManager._on_tick   → maybe_auto_save (60분)
-   │     └─► EventEngine._on_tick    → 4h/8h 주기 사건
-   │
-   └─ day_changed.emit(day)
-         └─► EventEngine._on_day    → apply_daily_economy
+TimeManager.tick_advanced ─┬─► SaveManager._on_tick  (60분마다 자동 저장)
+                           └─► EventEngine._on_tick  (4h/8h/12h 주기 사건)
+TimeManager.day_changed   ────►► EventEngine._on_day  (일간 자원 변동)
+
+DecisionQueue.push(priority=CRITICAL) ──► GameManager.pause_for_decision()
+                                          (자동 진행 일시정지 신호)
 ```
+
+### 결정 큐 자동 진행 동작 (v2 핵심)
+
+```gdscript
+# TimeManager.auto_progress_enabled:
+#   ON:  LOW 3초 / MEDIUM·HIGH·CRITICAL 5초 후 default 결정으로 자동 resolve
+#   OFF: 타이머 미설정 → 사용자가 결정할 때까지 모달 유지
+```
+
+**5가지 사건 타입 (모두 자동 진행 ON 시 자동 처리)**:
+
+| 타입 | 우선순위 | 자동 default |
+|---|---|---|
+| `VISITOR` (방문객) | LOW | `VISITOR_REJECT` (명성 -2) |
+| `FOOD_SHORTAGE` (식량 위기) | CRITICAL (food<15) / MEDIUM | `FOOD_BUY` / `FOOD_RATION` |
+| `DIPLOMACY` (동맹/교역) | MEDIUM | `DIPLOMACY_REFUSE` (명성 -5) |
 
 ---
 
@@ -124,7 +177,7 @@ TimeManager (autoload, _process)
 | **D** | (예정) 영지 대시보드 |
 | **R** | (예정) 용병 명단 |
 
-UI 버튼으로 P 토글 + +1일 진행 + 저장 + 불러오기 가능.
+UI 버튼: P 토글 / +1일 진행 / 저장 / 불러오기
 
 ---
 
@@ -136,25 +189,44 @@ UI 버튼으로 P 토글 + +1일 진행 + 저장 + 불러오기 가능.
 bash tools/setup-assets.sh    # idempotent — 풀 → 심볼릭 링크
 ```
 
-새 faction 추가 시 `setup-assets.sh`에 `link_unit_faction "엘프스"` 한 줄 추가.
+새 faction 추가 시 `setup-assets.sh`에 `link_unit_faction "faction"` 한 줄 추가.
 
-### Verifying with LB_VERIFY
+### LB_VERIFY
 
-`scripts/main.gd`의 `_run_verify()`가 8단계 자동 검증. 변경 시 반드시 통과 확인.
+`scripts/main.gd`의 `_run_verify()`가 11단계 자동 검증. 변경 시 반드시 통과 확인:
+
+```bash
+LB_VERIFY=1 godot --headless    # 5~15초
+```
 
 ### 알려진 함정
 
 | 함정 | 해결 |
 |---|---|
 | `_ready` 함수와 `_ready` 멤버 충돌 → parse 에러 | `_manifest_ready` 같이 함수명 회피 |
-| autoload의 멤버 이름 `day` → local 변수 명시 접근 `TimeManager.day` | 멤버 shadowing 회피 |
-| `assets/.gdignore`가 폰트까지 차단 | 폰트는 .gdignore 없이 import |
+| autoload 멤버 이름 `day` → local 변수 명시 접근 `TimeManager.day` | 멤버 shadowing 회피 |
+| `assets/.gdignore`가 폰트까지 차단 | v2는 res:// 직접 사용 — setup-assets.sh에서 .gdignore 생성 안 함 |
 | Godot 4.7은 TTF만 직접 로더 (OTF/TTC 미지원) | NanumGothic.ttf 사용 |
+| ManorDashboard가 모달을 가림 | 모달을 별도 `ModalLayer` (layer=100) CanvasLayer로 분리 |
+| `await get_tree().create_timer().timeout` 헤드리스 hang | LB_VERIFY는 동기 처리 |
+| `@onready $SceneInstance` 인스턴스화 순서 | main.gd처럼 `var + call_deferred` 동적 검색 |
 
-상세 함정 + 검증 패턴:
-- `incremental-game-design-last-banner-event-engine` 스킬 (GameWorld/EventEngine/DecisionQueue 실전 패턴)
-- `godot-game-bootstrap` 스킬 (Godot 부트스트랩 + 멀티플랫폼 export)
-- `godot-game-bootstrap/references/godot-4-headless-bootstrap.md`
+상세 패턴:
+- `godot-game-bootstrap` 스킬 (Godot 부트스트랩)
+- `incremental-game-design-last-banner-event-engine` 스킬 (자동 진행 + 결정 큐 실전 패턴)
+
+---
+
+## 🔄 v1 → v2 변경 이력
+
+| v1 (폐기) | v2 (현재) |
+|---|---|
+| Godot 4 + Vercel Web export | Godot 4 + macOS .app 전용 |
+| KayKit 3D GLB (5 heroes + 4 skeletons + ~50 props) | Wesnoth 2D PNG (5 factions, 432 자산) |
+| lazy fetch (jsDelivr CDN) | res:// 직접 |
+| 검은 화면 (WebGL2 + COEP 헤더 함정) | 1280×720 매너 대시보드 즉시 표시 |
+| 12차까지 누적된 v1 코드 | 클린 리셋 (단 1 commit = v2.0.0) |
+| 결정 큐 알림만 (LOW/MEDIUM 안 보임) | 모든 우선순위 모달 + 자동 진행 분기 |
 
 ---
 
