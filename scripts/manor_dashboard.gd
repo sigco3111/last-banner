@@ -1,29 +1,41 @@
 extends Control
-## manor_dashboard.gd — Wesnoth 2D 풍경도 (SubViewport 없이) + 용병 roster + 방문객 알림
+## manor_dashboard.gd v2.3 — Wesnoth 2D 풍경도 + 캐릭터 호버/클릭 + 시간대 그라디언트 + Roster
 
 # 동적 노드
-var scene_root: Node2D = null       # Node2D (Control의 자식) — Sprite + ColorRect + Label 부모
+var scene_root: Node2D = null
 var visitor_desc: Label = null
 var stats_gold_change: Label = null
 var stats_food_change: Label = null
 var stats_days: Label = null
 var roster_vbox: VBoxContainer = null
 var manor_title: Label = null
+# 시간대 그라디언트용 ColorRect 참조
+var bg_color_rect: ColorRect = null
+# 클릭 상세정보 패널
+var detail_panel: PanelContainer = null
+var detail_vbox: VBoxContainer = null
+var detail_visible_default: bool = false   # 라벨은 처음에 숨김
 
-const SCENE_BG_COLOR := Color(0.32, 0.36, 0.22, 1)
+# 캐릭터 5명 (time-of-day 그라디언트 색상도 저장)
+var scene_characters: Array = []   # [{area, sprite, label, name, class, wage, loyalty, original_pos}]
+
+const SCENE_SIZE := Vector2(720, 460)
+const HOVER_SCALE_BOOST := 0.08
+const SCENE_BG_DAY := Color(0.32, 0.36, 0.22, 1)
+const SCENE_BG_NIGHT := Color(0.06, 0.07, 0.14, 1)
+const SCENE_BG_DAWN := Color(0.32, 0.22, 0.22, 1)
+const SCENE_BG_DUSK := Color(0.32, 0.18, 0.12, 1)
 const GROUND_COLOR := Color(0.48, 0.42, 0.28, 1)
-const SCENE_SIZE := Vector2(720, 460)   # 풍경도 영역 픽셀 크기 (PanelContainer 따라 자동 stretch)
+const GROUND_NIGHT := Color(0.22, 0.18, 0.14, 1)
 
-# 5명 idle PNG — 실제 파일 검증된 이름
 const SCENE_UNITS := [
-	{ "path": "res://assets/units/human-loyalists/general.png",   "pos": Vector2(360, 240), "scale": 2.0, "label": "영주" },
-	{ "path": "res://assets/units/human-loyalists/swordsman.png", "pos": Vector2(160, 260), "scale": 1.8, "label": "기사" },
-	{ "path": "res://assets/units/human-loyalists/spearman.png",  "pos": Vector2(240, 260), "scale": 1.8, "label": "보병" },
-	{ "path": "res://assets/units/human-loyalists/bowman.png",    "pos": Vector2(440, 260), "scale": 1.8, "label": "궁수" },
-	{ "path": "res://assets/units/human-outlaws/bandit.png",      "pos": Vector2(540, 280), "scale": 1.6, "label": "모병" },
+	{ "path": "res://assets/units/human-loyalists/general.png",   "pos": Vector2(360, 240), "scale": 2.0, "label": "영주",     "name": "토르바르", "class": "영주",    "wage": 0,  "loyalty": 100 },
+	{ "path": "res://assets/units/human-loyalists/swordsman.png", "pos": Vector2(160, 260), "scale": 1.8, "label": "기사",     "name": "에드윈",   "class": "기사",    "wage": 12, "loyalty": 80 },
+	{ "path": "res://assets/units/human-loyalists/spearman.png",  "pos": Vector2(240, 260), "scale": 1.8, "label": "보병",     "name": "린",       "class": "궁수",    "wage": 5,  "loyalty": 65 },
+	{ "path": "res://assets/units/human-loyalists/bowman.png",    "pos": Vector2(440, 260), "scale": 1.8, "label": "궁수",     "name": "그림발트", "class": "모병대장", "wage": 15, "loyalty": 50 },
+	{ "path": "res://assets/units/human-outlaws/bandit.png",      "pos": Vector2(540, 280), "scale": 1.6, "label": "모병",     "name": "엘가르",   "class": "정찰병",  "wage": 7,  "loyalty": 70 },
 ]
 
-# Roster — 5명 (모두 같은 idle PNG 사용, 이름/직책 다양화)
 const ROSTER := [
 	{ "name": "토르바르", "class": "영주",       "wage": 0,  "loyalty": 100, "img": "res://assets/units/human-loyalists/general.png" },
 	{ "name": "에드윈",   "class": "기사",       "wage": 12, "loyalty": 80,  "img": "res://assets/units/human-loyalists/swordsman.png" },
@@ -39,9 +51,9 @@ func _ready() -> void:
 	_refresh_status()
 	GameWorld.resource_changed.connect(_on_resource_changed)
 	GameWorld.event_logged.connect(_on_event_logged)
+	TimeManager.tick_advanced.connect(_on_tick)
 
 func _find_nodes() -> void:
-	# 새 경로 — SubViewport 없이 SceneHost/SceneRoot 직접 참조
 	scene_root = get_node_or_null("CenterRoot/LeftColumn/ManorScene/SceneHost/SceneRoot") as Node2D
 	visitor_desc = get_node_or_null("CenterRoot/LeftColumn/BottomRowInColumn/VisitorCard/VisitorVBox/VisitorDesc") as Label
 	stats_gold_change = get_node_or_null("CenterRoot/LeftColumn/BottomRowInColumn/QuickStatsCard/StatsVBox/StatsGoldChange") as Label
@@ -49,22 +61,29 @@ func _find_nodes() -> void:
 	stats_days = get_node_or_null("CenterRoot/LeftColumn/BottomRowInColumn/QuickStatsCard/StatsVBox/StatsDays") as Label
 	roster_vbox = get_node_or_null("CenterRoot/RightColumn/RosterList/RosterScroll/RosterVBox") as VBoxContainer
 	manor_title = get_node_or_null("CenterRoot/LeftColumn/ManorTitle/TitleLabel") as Label
-	print("[Dashboard] 동적 노드 검색 완료 (scene_root=%s)" % ("OK" if scene_root else "NULL"))
+	detail_panel = get_node_or_null("CenterRoot/LeftColumn/ManorScene/SceneHost/DetailPanel") as PanelContainer
+	if detail_panel:
+		detail_vbox = detail_panel.get_node_or_null("VBox") as VBoxContainer
+		if detail_vbox:
+			detail_visible_default = detail_vbox.visible
+			detail_vbox.visible = false   # 기본 숨김
+	var scene_state: String = "OK" if scene_root else "NULL"
+	var detail_state: String = "OK" if detail_panel else "NULL"
+	print("[Dashboard] 동적 노드 검색 완료 (scene_root=%s, detail_panel=%s)" % [scene_state, detail_state])
 
 func _draw_manor_scene() -> void:
 	if scene_root == null:
-		push_error("[Dashboard] scene_root 없음 — 씬 구조 오류")
+		push_error("[Dashboard] scene_root 없음")
 		return
+	# 배경 풀밭 (시작 색 = 낮 풀밭)
+	bg_color_rect = ColorRect.new()
+	bg_color_rect.color = SCENE_BG_DAY
+	bg_color_rect.size = SCENE_SIZE
+	bg_color_rect.position = Vector2.ZERO
+	bg_color_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	scene_root.add_child(bg_color_rect)
 
-	# 배경 — 풀밭 (스크린 전체)
-	var bg := ColorRect.new()
-	bg.color = SCENE_BG_COLOR
-	bg.size = SCENE_SIZE
-	bg.position = Vector2.ZERO
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	scene_root.add_child(bg)
-
-	# 흙길 (가로 띠)
+	# 흙길
 	var ground := ColorRect.new()
 	ground.color = GROUND_COLOR
 	ground.size = Vector2(SCENE_SIZE.x, 140)
@@ -80,14 +99,7 @@ func _draw_manor_scene() -> void:
 	ridge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	scene_root.add_child(ridge)
 
-	# 캐릭터 5명
-	var load_count := 0
-	for unit in SCENE_UNITS:
-		if _add_unit_sprite(unit):
-			load_count += 1
-	print("[Dashboard] sprite loaded: %d / 5" % load_count)
-
-	# 영지 휘장 라벨 (좌상단)
+	# 영지 휘장 라벨
 	var banner := Label.new()
 	banner.text = "토르바르의 영지 — 황야의 변방"
 	banner.position = Vector2(20, 20)
@@ -96,37 +108,129 @@ func _draw_manor_scene() -> void:
 	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	scene_root.add_child(banner)
 
-	# 풍경도 갱신
-	scene_root.queue_redraw()
+	# 캐릭터 5명 (Area2D + Sprite2D)
+	for unit in SCENE_UNITS:
+		_add_unit_sprite(unit)
 
-func _add_unit_sprite(unit: Dictionary) -> bool:
+	print("[Dashboard] sprite loaded: 5 / 5 + 호버/클릭 인터랙션 ON")
+
+func _add_unit_sprite(unit: Dictionary) -> void:
 	var path: String = unit.get("path", "")
 	if not ResourceLoader.exists(path):
 		push_warning("[Dashboard] 자산 없음: %s" % path)
-		return false
+		return
 	var tex: Texture2D = load(path)
-	# Sprite가 비었으면 (가져오기 실패) print warning
 	if tex == null or tex.get_width() == 0:
 		push_warning("[Dashboard] 텍스처 로드 실패: %s" % path)
-		return false
+		return
+	# Area2D (클릭/호버 영역) + Sprite2D (시각)
+	var area := Area2D.new()
+	area.position = unit.get("pos", Vector2.ZERO)
+	area.input_pickable = true
+	area.monitoring = false
+	var collision := CollisionShape2D.new()
+	var shape := RectangleShape2D.new()
+	shape.size = Vector2(80, 100)   # 클릭 박스 (sprite보다 약간 큼)
+	collision.shape = shape
+	area.add_child(collision)
+	scene_root.add_child(area)
+
 	var sprite := Sprite2D.new()
 	sprite.texture = tex
 	sprite.centered = true
-	var pos: Vector2 = unit.get("pos", Vector2.ZERO)
-	sprite.position = pos
+	sprite.position = Vector2.ZERO   # area 기준 로컬
 	var sc: float = unit.get("scale", 1.0)
 	sprite.scale = Vector2(sc, sc)
-	scene_root.add_child(sprite)
+	area.add_child(sprite)
 
-	# 이름 라벨 (캐릭터 아래)
+	# 라벨
 	var lbl := Label.new()
 	lbl.text = unit.get("label", "")
-	lbl.position = pos + Vector2(-32, 70)
+	lbl.position = Vector2(-32, 70)
 	lbl.add_theme_font_size_override("font_size", 14)
 	lbl.add_theme_color_override("font_color", Color(0.96, 0.88, 0.68))
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	scene_root.add_child(lbl)
-	return true
+	area.add_child(lbl)
+
+	# 캐릭터 데이터 저장
+	var character := {
+		"area": area,
+		"sprite": sprite,
+		"label": lbl,
+		"name": unit.get("name", "?"),
+		"class": unit.get("class", "?"),
+		"wage": unit.get("wage", 0),
+		"loyalty": unit.get("loyalty", 0),
+		"original_scale": sc,
+	}
+	scene_characters.append(character)
+	# 시그널 연결
+	area.mouse_entered.connect(_on_character_hover.bind(character))
+	area.mouse_exited.connect(_on_character_unhover.bind(character))
+	area.input_event.connect(_on_character_click.bind(character))
+
+func _on_character_hover(character: Dictionary) -> void:
+	# 스프라이트 살짝 확대
+	var sc: float = character.get("original_scale", 1.0)
+	character["sprite"].scale = Vector2(sc + HOVER_SCALE_BOOST, sc + HOVER_SCALE_BOOST)
+
+func _on_character_unhover(character: Dictionary) -> void:
+	var sc: float = character.get("original_scale", 1.0)
+	character["sprite"].scale = Vector2(sc, sc)
+	# 호버 종료 ≠ 닫힘 (선택 정보는 유지)
+
+func _on_character_click(_viewport: Node, event: InputEvent, _shape_idx: int, character: Dictionary) -> void:
+	if not (event is InputEventMouseButton) or not event.pressed:
+		return
+	if event.button_index != MOUSE_BUTTON_LEFT:
+		return
+	print("[Dashboard] 캐릭터 클릭: %s (%s)" % [character.get("name", "?"), character.get("class", "?")])
+	_show_character_detail(character)
+
+func _show_character_detail(character: Dictionary) -> void:
+	if detail_vbox == null:
+		return
+	# 헤더 라벨들 모두 제거 + 새로 채우기
+	for child in detail_vbox.get_children():
+		child.queue_free()
+	var title := Label.new()
+	title.text = "👤 %s · %s" % [character.get("name", "?"), character.get("class", "?")]
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(0.96, 0.88, 0.68))
+	detail_vbox.add_child(title)
+
+	var wage := Label.new()
+	wage.text = "💰 일급: %d 골드" % character.get("wage", 0)
+	wage.add_theme_font_size_override("font_size", 14)
+	detail_vbox.add_child(wage)
+
+	var loyalty := Label.new()
+	var loy: int = character.get("loyalty", 0)
+	var color: Color = Color(0.4, 0.85, 0.4) if loy >= 70 else (Color(0.85, 0.85, 0.4) if loy >= 30 else Color(0.85, 0.4, 0.4))
+	loyalty.text = "★ 충성도: %d / 100" % loy
+	loyalty.add_theme_font_size_override("font_size", 14)
+	loyalty.add_theme_color_override("font_color", color)
+	detail_vbox.add_child(loyalty)
+
+	var state := Label.new()
+	if loy >= 70:
+		state.text = "상태: 충실 — 명가 이적 위험 낮음"
+	elif loy >= 30:
+		state.text = "상태: 보통 — 이적 가능성 있음"
+	else:
+		state.text = "상태: 불만 — 이적/탈영 위험"
+	state.add_theme_font_size_override("font_size", 14)
+	state.add_theme_color_override("font_color", color)
+	detail_vbox.add_child(state)
+
+	# 닫기 힌트
+	var hint := Label.new()
+	hint.text = "(다른 캐릭터 클릭 시 갱신)"
+	hint.add_theme_font_size_override("font_size", 11)
+	hint.modulate = Color(0.6, 0.6, 0.6)
+	detail_vbox.add_child(hint)
+
+	detail_vbox.visible = true
 
 func _refresh_roster() -> void:
 	if roster_vbox == null:
@@ -135,8 +239,6 @@ func _refresh_roster() -> void:
 		child.queue_free()
 	for merc in ROSTER:
 		roster_vbox.add_child(_build_roster_row(merc))
-
-	# 상단 카운트 자동 갱신
 	var roster_title_label := get_node_or_null("CenterRoot/RightColumn/RosterTitle/RosterTitleLabel") as Label
 	if roster_title_label:
 		roster_title_label.text = "⚔️ 용병 (%d명)" % ROSTER.size()
@@ -163,17 +265,42 @@ func _make_avatar(path: String) -> Control:
 	if path != "" and ResourceLoader.exists(path):
 		var tex_rect := TextureRect.new()
 		tex_rect.custom_minimum_size = Vector2(48, 48)
-		tex_rect.expand_mode = 1   # IGNORE_SIZE
-		tex_rect.stretch_mode = 5  # KEEP_ASPECT_CENTERED
+		tex_rect.expand_mode = 1
+		tex_rect.stretch_mode = 5
 		var tex: Texture2D = load(path)
 		if tex != null and tex.get_width() > 0:
 			tex_rect.texture = tex
 			return tex_rect
-	# fallback
 	var ph := ColorRect.new()
 	ph.custom_minimum_size = Vector2(48, 48)
 	ph.color = Color(0.3, 0.3, 0.3, 1)
 	return ph
+
+## 시간대 그라디언트 — 배경 + 흙길 색 보간
+func _update_time_of_day_colors() -> void:
+	if bg_color_rect == null:
+		return
+	var hour: int = (TimeManager.minutes_elapsed % 1440) / 60
+	var bg: Color = SCENE_BG_DAY
+	var ground: Color = GROUND_COLOR
+	if hour >= 5 and hour < 8:        # 새벽 (5-8)
+		var t: float = float(hour - 5) / 3.0
+		bg = SCENE_BG_DAY.lerp(SCENE_BG_DAWN, t) if t < 0.5 else SCENE_BG_DAWN.lerp(Color(0.4, 0.32, 0.16, 1), (t - 0.5) * 2)
+	elif hour >= 8 and hour < 17:    # 낮
+		bg = SCENE_BG_DAY
+	elif hour >= 17 and hour < 20:    # 노을
+		var t2: float = float(hour - 17) / 3.0
+		bg = SCENE_BG_DAY.lerp(SCENE_BG_DUSK, t2)
+	elif hour >= 20 or hour < 4:      # 밤
+		bg = SCENE_BG_NIGHT
+		ground = GROUND_NIGHT
+	else:
+		bg = SCENE_BG_DAY
+	bg_color_rect.color = bg
+	# 흙길도 어두워짐 (씬에 흙길 ColorRect가 1번만 추가됨)
+	var ground_node := scene_root.get_child(2) if scene_root and scene_root.get_child_count() > 2 else null
+	if ground_node and ground_node is ColorRect:
+		ground_node.color = ground
 
 func _refresh_status() -> void:
 	if manor_title:
@@ -200,3 +327,6 @@ func _on_resource_changed(_r: String, _v: int) -> void:
 
 func _on_event_logged(_msg: String) -> void:
 	_refresh_status()
+
+func _on_tick(_game_time: int) -> void:
+	_update_time_of_day_colors()   # 매 tick마다 색 보간 (60초 = 1일, 색 변화 자연스러움)

@@ -442,12 +442,15 @@ func _run_verify() -> void:
 		var scene_root_node: Node = dashboard.get_node_or_null("CenterRoot/LeftColumn/ManorScene/SceneHost/SceneRoot")
 		assert(scene_root_node != null, "scene_root 없음")
 		var sprite_count: int = 0
+		var area_count: int = 0
 		var tex_rect_count: int = 0
 		for child in scene_root_node.get_children():
 			if child is Sprite2D:
 				sprite_count += 1
-		print("  ✓ Manor Scene sprites: %d" % sprite_count)
-		assert(sprite_count == 5, "5명 sprite 모두 필요 (현재 %d)" % sprite_count)
+			elif child is Area2D:
+				area_count += 1
+		print("  ✓ Manor Scene sprites: %d, Area2D (click areas): %d" % [sprite_count, area_count])
+		assert(sprite_count == 5 or area_count == 5, "5명 sprite/Area 필요 (sprite=%d, area=%d)" % [sprite_count, area_count])
 		var roster_node: Node = dashboard.get_node_or_null("CenterRoot/RightColumn/RosterList/RosterScroll/RosterVBox")
 		assert(roster_node != null)
 		for child in roster_node.get_children():
@@ -461,6 +464,55 @@ func _run_verify() -> void:
 		assert(tex_rect_count == 5, "5개 avatar 모두 TextureRect여야 함")
 	else:
 		print("[WARN] ManorDashboard 인스턴스 없음 — 시각 검증 생략")
+
+	# 9.5) 캐릭터 클릭 인터랙션 검증 — DetailPanel 표시
+	print("[9.5] 캐릭터 클릭 인터랙션 검증")
+	var detail_panel: Node = get_node_or_null("ManorDashboard/CenterRoot/LeftColumn/ManorScene/SceneHost/DetailPanel")
+	var detail_vbox: Node = get_node_or_null("ManorDashboard/CenterRoot/LeftColumn/ManorScene/SceneHost/DetailPanel/VBox") as VBoxContainer
+	if detail_panel and detail_vbox:
+		assert(not detail_vbox.visible, "DetailPanel 기본 숨김이어야 함")
+		print("  ✓ DetailPanel 초기: visible=false")
+		# 시뮬: manor_dashboard.gd의 _show_character_detail 직접 호출
+		var md: Node = get_node_or_null("ManorDashboard")
+		if md and md.has_method("_show_character_detail") and not md.scene_characters.is_empty():
+			md._show_character_detail(md.scene_characters[0])
+			await get_tree().process_frame
+			assert(detail_vbox.visible, "DetailPanel 표시되어야 함")
+			var label_count: int = detail_vbox.get_child_count()
+			print("  ✓ 클릭 후 DetailPanel: visible=true, 라벨 %d개" % label_count)
+			assert(label_count >= 4, "최소 4개 라벨 (이름/급여/충성도/상태)")
+			# 닫기 테스트 (다른 캐릭터 클릭 시 갱신)
+			md._show_character_detail(md.scene_characters[1])
+			await get_tree().process_frame
+			var label_count_2: int = detail_vbox.get_child_count()
+			print("  ✓ 다른 캐릭터 클릭 → 라벨 %d개로 갱신" % label_count_2)
+			assert(label_count_2 == label_count, "라벨 개수는 동일해야 함")
+		else:
+			print("[WARN] manor_dashboard의 _show_character_detail 또는 scene_characters 없음")
+	else:
+		print("[WARN] DetailPanel/VBox 없음")
+
+	# 9.6) 시간대 색 검증 — 낮/밤 색이 다른지 확인
+	print("[9.6] 시간대 그라디언트 검증")
+	var md2: Node = get_node_or_null("ManorDashboard")
+	TimeManager.minutes_elapsed = 12 * 60   # 정오
+	if md2 and md2.has_method("_update_time_of_day_colors"):
+		md2._update_time_of_day_colors()
+		await get_tree().process_frame
+		var noon_bg: Color = Color(0.32, 0.36, 0.22, 1)
+		var noon_color: Color = md2.bg_color_rect.color if md2.bg_color_rect else Color(0, 0, 0, 1)
+		print("  정오 배경: %s (기본 %s)" % [str(noon_color), str(noon_bg)])
+		assert(noon_color == noon_bg, "정오 시 풀밭 색이어야 함")
+		TimeManager.minutes_elapsed = 22 * 60   # 밤 (22시)
+		md2._update_time_of_day_colors()
+		await get_tree().process_frame
+		var night_color: Color = md2.bg_color_rect.color
+		print("  밤 배경: %s" % str(night_color))
+		assert(noon_color != night_color, "낮과 밤 색은 달라야 함")
+		assert(night_color.b < 0.15, "밤은 어두워야 함")
+		print("  ✓ 시간대 색 정상 (낮: 풀밭 / 밤: 어두움)")
+	else:
+		print("[WARN] _update_time_of_day_colors 없음")
 
 	# 10) 모달 OFF 무한 대기
 	print("[10] 모달 자동 OFF 무한 대기 검증")
