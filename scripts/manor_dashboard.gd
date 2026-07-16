@@ -148,7 +148,7 @@ func _add_unit_sprite(unit: Dictionary) -> void:
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	scene_root.add_child(lbl)
 
-	# 캐릭터 데이터 저장
+	# 캐릭터 데이터 저장 (original_position = 처음 부착했을 때 위치)
 	var character := {
 		"area": btn,   # TextureButton (Control)
 		"button": btn,
@@ -159,6 +159,7 @@ func _add_unit_sprite(unit: Dictionary) -> void:
 		"loyalty": unit.get("loyalty", 0),
 		"original_scale": unit.get("scale", 1.0),
 		"original_size": btn.size,
+		"original_position": btn.position,
 		"is_hovered": false,
 	}
 	scene_characters.append(character)
@@ -167,23 +168,44 @@ func _add_unit_sprite(unit: Dictionary) -> void:
 	# 클릭 핸들러는 의도적으로 연결하지 않음 (호버만으로 인터랙션)
 
 func _on_character_hover(character: Dictionary) -> void:
-	# 호버한 캐릭터 정보를 상태창에 표시
 	character["is_hovered"] = true
-	var orig: Vector2 = character.get("original_size", Vector2.ZERO)
-	var boosted: Vector2 = orig * (1.0 + HOVER_SCALE_BOOST)
-	character["button"].size = boosted
-	character["button"].position = (character.get("button").position - (boosted - orig) / 2.0)
-	# 상태창 갱신
+	# size 키워도 중심점이 그대로 유지되도록 position 보정 (centered 효과)
+	var btn: TextureButton = character.get("button")
+	if btn:
+		var orig: Vector2 = character.get("original_size", Vector2.ZERO)
+		var orig_pos: Vector2 = character.get("original_position", btn.position)
+		var boosted: Vector2 = orig * (1.0 + HOVER_SCALE_BOOST)
+		# delta = boosted - orig, 중심점 보존 위해 position -= delta/2
+		var delta: Vector2 = (boosted - orig) * 0.5
+		btn.position = orig_pos - delta
+		btn.size = boosted
+		# 다음 unhover를 위해 original_position 저장
+		character["original_position"] = orig_pos
+	# 상태창 표시 + 캐릭터 정보 갱신
+	if detail_panel:
+		detail_panel.visible = true
 	_show_character_detail(character)
 
 func _on_character_unhover(character: Dictionary) -> void:
 	character["is_hovered"] = false
-	var orig: Vector2 = character.get("original_size", Vector2.ZERO)
-	character["button"].size = orig
-	# 위치를 원래 위치로 복원 (단순화: 매번 정확한 보정 없으니 position 자체를 보정 안 함)
-	# 호버 해제 시 상태창 자동 숨김
+	var btn: TextureButton = character.get("button")
+	if btn:
+		var orig: Vector2 = character.get("original_size", Vector2.ZERO)
+		var orig_pos: Vector2 = character.get("original_position", btn.position)
+		# 원래 위치 + 원래 크기 복귀
+		btn.position = orig_pos
+		btn.size = orig
+	# 모든 캐릭터에서 hover 떠났으면 상태창 숨김 (다른 캐릭터 hover 중이 아닐 때)
 	if detail_vbox:
-		detail_vbox.visible = false
+		var any_hovered := false
+		for c in scene_characters:
+			if c.get("is_hovered", false):
+				any_hovered = true
+				break
+		if not any_hovered:
+			detail_vbox.visible = false
+			if detail_panel:
+				detail_panel.visible = false
 
 func _show_character_detail(character: Dictionary) -> void:
 	if detail_vbox == null:
