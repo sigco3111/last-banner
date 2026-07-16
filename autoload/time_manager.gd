@@ -7,7 +7,7 @@ signal day_changed(day: int)
 signal month_changed(month: int)
 signal season_changed(season: String)
 
-const SECONDS_PER_GAME_MINUTE := 0.5   # 0.5초 real = 1분 게임 (빠른 진행)
+const SECONDS_PER_GAME_MINUTE := 1.0 / 60.0   # 1초 real = 60분 게임 (= 1시간) → 60초당 1일
 const MINUTES_PER_HOUR := 60
 const MINUTES_PER_DAY := 1440          # 24h
 const DAYS_PER_MONTH := 30

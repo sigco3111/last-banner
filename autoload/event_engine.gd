@@ -2,10 +2,10 @@ extends Node
 ## 사건 생성기 — v1 패턴 그대로
 ## v2 단순화: 하루 자장 이벤트 + 비상 식량 1종
 
-const RECRUIT_VISITOR_INTERVAL_MIN := 240   # 4시간마다 방문객
-const FOOD_CHECK_INTERVAL_MIN := 480        # 8시간마다 식량 체크
-const DIPLOMACY_INTERVAL_MIN := 480         # 8시간마다 외교 요청
-const DECISION_MAX_PER_DAY := 3
+const RECRUIT_VISITOR_INTERVAL_MIN := 1200  # 20시간마다 방문객
+const FOOD_CHECK_INTERVAL_MIN := 2400        # 40시간마다 식량 체크
+const DIPLOMACY_INTERVAL_MIN := 2400         # 40시간마다 외교 요청
+const DECISION_MAX_PER_DAY := 8              # 하루 최대 8건 (자동 진행 빠른 속도에 맞춤)
 
 var _decisions_today: int = 0
 var _last_recruit_visitor: int = 0

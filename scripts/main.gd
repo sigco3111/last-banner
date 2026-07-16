@@ -295,7 +295,7 @@ func _run_verify() -> void:
 	assert(GameWorld.population == 50)
 	print("[1] 새 게임 초기 상태 OK: %s" % GameWorld.summary())
 
-	# 2) 1일 시뮬
+	# 2) 1일 시뮬 — 60초 = 1일이므로 _process 기반 시뮬은 동기 advance_minutes(1440)으로 검증
 	print("[2] 1일 (1440분) 진행")
 	for i in range(144):
 		TimeManager.advance_minutes(10)
@@ -304,6 +304,15 @@ func _run_verify() -> void:
 	print("[3] 1일 후: %s" % s)
 	assert(GameWorld.gold != 200, "금이 변동되어야 함")
 	assert(GameWorld.food != 100, "식량이 변동되어야 함")
+
+	# 2.5) 속도 검증 — _process에 1초 delta 주입 → 60분 advance 기대 (헤드리스 안전)
+	print("[2.5] 속도 검증 — 1초 real = 60분 game (1.0 delta 주입)")
+	var min_before: int = TimeManager.minutes_elapsed
+	TimeManager._process(1.0)   # 시뮬: 1초 경과
+	var min_after: int = TimeManager.minutes_elapsed
+	var advance_60: int = min_after - min_before
+	print("  1초 시뮬 후 진행 분: %d (기대 60)" % advance_60)
+	assert(advance_60 >= 55 and advance_60 <= 65, "속도 정확도: %d분 (60±5)" % advance_60)
 
 	# 3) 6일 추가 — 결정 큐 자동 push 확인
 	print("[4] 추가 6일 진행 (사건 생성 대기)")
@@ -403,11 +412,22 @@ func _run_verify() -> void:
 
 	# 10) 모달 자동 OFF 무한 대기 검증 — 자동 진행 OFF 시 모달이 안 닫힘
 	print("[10] 모달 자동 OFF 무한 대기 검증")
-	# 기존 큐 클리어
+	# 기존 큐 클리어 + 모든 결정 큐 제거
 	while not DecisionQueue.get_all_pending().is_empty():
 		DecisionQueue.resolve(DecisionQueue.get_all_pending()[0].id, {"id": "force", "label": "force"})
-	# 큐에 새 결정 1건 강제 push
-	EventEngine._maybe_visitor(Time.get_ticks_msec() + 10000)
+	_current_decision_id = -1
+	_last_queue_size = 0
+	if decision_modal: decision_modal.visible = false
+	if modal_dim_bg: modal_dim_bg.visible = false
+	# 큐에 새 결정 1건 강제 push (직접 push — daily cap 무관)
+	var new_id: int = DecisionQueue.push("TEST_OFF", {
+		"title": "테스트 (자동 OFF)",
+		"description": "자동 진행 OFF 상태에서 모달 유지 검증",
+		"choices": [
+			{ "id": "yes", "label": "예", "result": "TEST" },
+		],
+	}, DecisionQueue.Priority.MEDIUM)
+	print("  강제 push: id=%d" % new_id)
 	await get_tree().process_frame
 	# 자동 진행 OFF로 전환
 	TimeManager.auto_progress_enabled = false
@@ -416,29 +436,29 @@ func _run_verify() -> void:
 	await get_tree().process_frame
 	var modal_visible_off: bool = decision_modal.visible if decision_modal else false
 	print("  ✓ 모달 표시 (auto_progress=OFF): visible=%s" % str(modal_visible_off))
-	assert(modal_visible_off, "자동 OFF에서 모달이 떠있어야 함")
-	# _on_auto_skip을 시뮬레이션 시간으로 호출 → OFF면 안 닫힘 확인
-	# 직접 함수를 호출해서 OFF 가드 검증
-	var saved_id: int = _current_decision_id
+	assert(modal_visible_off, "자동 OFF에서 모달이 떠있어야 함 (큐 size=%d, current_id=%d)" % [
+		DecisionQueue.get_all_pending().size(), _current_decision_id
+	])
+	# _on_auto_skip을 직접 호출 → OFF면 즉시 return하여 모달 유지
 	_current_decision_id = DecisionQueue.get_all_pending()[0].id if not DecisionQueue.get_all_pending().is_empty() else -1
-	# 가드 확인: _on_auto_skip이 호출되면 OFF에선 즉시 return
 	_on_auto_skip()
 	var modal_still_visible: bool = decision_modal.visible if decision_modal else false
-	assert(modal_still_visible, "자동 OFF에서 _on_auto_skip 호출되어도 모달 유지 (사용자 결정 대기)")
+	assert(modal_still_visible, "자동 OFF에서 _on_auto_skip 호출되어도 모달 유지")
 	print("  ✓ OFF 상태에서 _on_auto_skip 호출 → 모달 유지됨")
-	_current_decision_id = saved_id
+	_current_decision_id = -1  # 명시적 리셋
 
 	# 11) 모달 자동 ON 검증 — 자동 진행 ON 시 모달 자동 닫힘 (3초)
 	print("[11] 모달 자동 ON 검증")
-	# 모달 강제 닫기 + _current_decision_id 리셋 (다음 큐 자동 표시 허용)
-	DecisionQueue.resolve(_current_decision_id, {"id": "force", "label": "force"}) if _current_decision_id > 0 else null
+	# 모달 강제 닫기 + 모든 상태 리셋
 	_current_decision_id = -1
 	_last_queue_size = 0
 	if decision_modal: decision_modal.visible = false
 	if modal_dim_bg: modal_dim_bg.visible = false
-	# 큐 클리어 (테스트용)
+	# 큐 전부 제거
 	while not DecisionQueue.get_all_pending().is_empty():
 		DecisionQueue.resolve(DecisionQueue.get_all_pending()[0].id, {"id": "force", "label": "force"})
+	# EventEngine 일일 카운터 강제 리셋 (daily cap 무력화)
+	EventEngine._decisions_today = 0
 	# 새 LOW 1건 push
 	EventEngine._maybe_visitor(Time.get_ticks_msec() + 20000)
 	await get_tree().process_frame
