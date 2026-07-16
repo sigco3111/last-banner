@@ -71,11 +71,11 @@ func _find_nodes() -> void:
 		detail_vbox = detail_panel.get_node_or_null("VBox") as VBoxContainer
 		if detail_vbox:
 			detail_vbox.visible = false
-	chart_canvas = get_node_or_null("CenterRoot/LeftColumn/ManorTitle/TitleHBox/ChartCardInline/ChartCanvas") as Control
-	chart_title = get_node_or_null("CenterRoot/LeftColumn/ManorTitle/TitleHBox/ChartCardInline/ChartTitle") as Label
+	chart_canvas = get_node_or_null("CenterRoot/LeftColumn/ChartRow/ChartCard/ChartCanvas") as Control
+	# chart_title은 차트 밖에 별도 Label (ChartRow/ChartTitleLabel) — 명시적 갱신은 _refresh_chart에서
 	if chart_canvas:
 		chart_canvas.draw.connect(_draw_chart)
-		print("[Dashboard] 차트 캔버스 연결 완료")
+		print("[Dashboard] 차트 캔버스 연결 완료 (텍스트는 차트 외부)")
 	var scene_state: String = "OK" if scene_root else "NULL"
 	var detail_state: String = "OK" if detail_panel else "NULL"
 	print("[Dashboard] 동적 노드 검색 완료 (scene_root=%s, detail_panel=%s)" % [scene_state, detail_state])
@@ -365,12 +365,13 @@ func _refresh_chart() -> void:
 		chart_canvas.queue_redraw()
 
 ## 라인 차트 그리기 — Control._draw() 오버라이드 (실제로는 draw 시그널로)
+## 텍스트는 ChartRow/ChartTitleLabel 별도 Label — 차트 내부 텍스트 없음
 func _draw_chart() -> void:
 	if not chart_canvas:
 		return
 	var history: Array = GameWorld.history
 	var size: Vector2 = chart_canvas.size
-	var padding := Vector2(28, 14)
+	var padding := Vector2(20, 12)   # 텍스트 없으므로 패딩 줄임
 	var plot_w: float = max(size.x - padding.x * 2, 0.0)
 	var plot_h: float = max(size.y - padding.y * 2, 0.0)
 
@@ -409,9 +410,12 @@ func _draw_chart() -> void:
 	_draw_series(history, "food", Color(0.6, 0.85, 0.4),
 		padding, plot_w, plot_h, max_food)
 
-	# 텍스트 라벨
-	if chart_title:
-		chart_title.text = "📈 자원 추이 (7일, 금 %d, 식량 %d)" % [history[-1].gold, history[-1].food]
+	# 텍스트 라벨 (차트 Card 밖 — ChartRow/ChartTitleLabel)
+	var chart_row_label: Label = get_node_or_null("CenterRoot/LeftColumn/ChartRow/ChartTitleLabel") as Label
+	if chart_row_label and history.size() >= 1:
+		var last_gold: int = int(history[-1].gold)
+		var last_food: int = int(history[-1].food)
+		chart_row_label.text = "📈 자원 추이 (7일, 금 %d, 식량 %d)" % [last_gold, last_food]
 
 func _draw_series(history: Array, key: String, color: Color,
 		padding: Vector2, plot_w: float, plot_h: float, max_val: int) -> void:
