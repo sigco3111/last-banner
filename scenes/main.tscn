@@ -1,0 +1,122 @@
+[gd_scene load_steps=2 format=3 uid="uid://cmainhubv2"]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_main")
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="BG" type="ColorRect" parent="UI"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = 0.0
+offset_bottom = 0.0
+color = Color(0.12, 0.1, 0.08, 1)
+
+[node name="TitleBar" type="PanelContainer" parent="UI"]
+anchor_right = 1.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 56.0
+
+[node name="TitleHBox" type="HBoxContainer" parent="UI/TitleBar"]
+
+[node name="TitleLabel" type="Label" parent="UI/TitleBar/TitleHBox"]
+text = "🏰 Last Banner v2 — 변방 영지 운영 로그라이크"
+theme_override_font_sizes/font_size = 22
+
+[node name="StatusBar" type="VBoxContainer" parent="UI"]
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = 24.0
+offset_top = 80.0
+offset_right = -24.0
+offset_bottom = 220.0
+
+[node name="TimeLabel" type="Label" parent="UI/StatusBar"]
+text = "Day 0  |  00:00  |  자동 진행: ON"
+theme_override_font_sizes/font_size = 16
+
+[node name="GoldLabel" type="Label" parent="UI/StatusBar"]
+text = "💰 금: 200"
+theme_override_font_sizes/font_size = 18
+
+[node name="FoodLabel" type="Label" parent="UI/StatusBar"]
+text = "🌾 식량: 100"
+theme_override_font_sizes/font_size = 18
+
+[node name="PopLabel" type="Label" parent="UI/StatusBar"]
+text = "👥 인구: 50"
+theme_override_font_sizes/font_size = 18
+
+[node name="ProsperLabel" type="Label" parent="UI/StatusBar"]
+text = "⭐ 명성: 10"
+theme_override_font_sizes/font_size = 18
+
+[node name="DecisionLabel" type="Label" parent="UI/StatusBar"]
+text = "📜 대기 결정: 0건"
+theme_override_font_sizes/font_size = 16
+modulate = Color(1, 0.8, 0.4, 1)
+
+[node name="LastEventLabel" type="Label" parent="UI/StatusBar"]
+text = "🪵 최근 사건: (없음)"
+theme_override_font_sizes/font_size = 14
+
+[node name="ButtonRow" type="HBoxContainer" parent="UI"]
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -300.0
+offset_top = -80.0
+offset_right = 300.0
+offset_bottom = -24.0
+
+[node name="ToggleAutoButton" type="Button" parent="UI/ButtonRow"]
+custom_minimum_size = Vector2(140, 48)
+text = "P: 자동 진행"
+
+[node name="AdvanceButton" type="Button" parent="UI/ButtonRow"]
+custom_minimum_size = Vector2(140, 48)
+text = "+1일 진행"
+
+[node name="SaveButton" type="Button" parent="UI/ButtonRow"]
+custom_minimum_size = Vector2(100, 48)
+text = "💾 저장"
+
+[node name="LoadButton" type="Button" parent="UI/ButtonRow"]
+custom_minimum_size = Vector2(100, 48)
+text = "📂 불러오기"
+
+[node name="DecisionModal" type="PanelContainer" parent="UI"]
+visible = false
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -360.0
+offset_top = -180.0
+offset_right = 360.0
+offset_bottom = 180.0
+
+[node name="ModalVBox" type="VBoxContainer" parent="UI/DecisionModal"]
+
+[node name="ModalTitle" type="Label" parent="UI/DecisionModal/ModalVBox"]
+text = "결정"
+theme_override_font_sizes/font_size = 22
+
+[node name="ModalDesc" type="Label" parent="UI/DecisionModal/ModalVBox"]
+text = "설명"
+custom_minimum_size = Vector2(0, 80)
+autowrap_mode = 3
+theme_override_font_sizes/font_size = 16
+
+[node name="ModalPriority" type="Label" parent="UI/DecisionModal/ModalVBox"]
+text = "우선순위"
+theme_override_font_sizes/font_size = 14
+
+[node name="ModalChoices" type="VBoxContainer" parent="UI/DecisionModal/ModalVBox"]
