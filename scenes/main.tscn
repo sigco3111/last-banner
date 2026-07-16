@@ -19,7 +19,10 @@ layer = 5
 
 [node name="TitleScreen" parent="TitleLayer" instance=ExtResource("3_title")]
 
-[node name="BattleScene" parent="." instance=ExtResource("4_battle")]
+[node name="BattleLayer" type="CanvasLayer" parent="."]
+layer = 90
+
+[node name="BattleScene" parent="BattleLayer" instance=ExtResource("4_battle")]
 
 [node name="UI" type="CanvasLayer" parent="."]
 visible = false

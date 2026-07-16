@@ -281,6 +281,11 @@ func _current_decision_payload() -> Dictionary:
 	return {}
 
 func _get_battle_scene() -> Control:
+	# BattleLayer CanvasLayer → BattleScene 인스턴스
+	var layer: Node = get_node_or_null("BattleLayer") as CanvasLayer
+	if layer:
+		return layer.get_node_or_null("BattleScene") as Control
+	# legacy: Main 직속 자식
 	for child in get_children():
 		if child.name == "BattleScene" and child is Control:
 			return child
