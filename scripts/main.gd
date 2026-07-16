@@ -244,6 +244,14 @@ func _on_choice_pressed(choice: Dictionary) -> void:
 	if _current_decision_id < 0:
 		return
 	var result_code: String = choice.get("result", "")
+	var decision_type: String = _current_decision_type()
+	# BANDIT_RAID면 BattleScene로 라우팅
+	if decision_type == "BANDIT_RAID" and result_code == "BATTLE_BANDITS_FIGHT":
+		# BattleScene 찾고 표시
+		var battle: Control = _get_battle_scene()
+		if battle:
+			var enemy_count: int = int(_current_decision_payload().get("enemy_count", 4))
+			battle.start_battle(enemy_count)
 	if result_code != "":
 		_apply_result(result_code)
 	DecisionQueue.resolve(_current_decision_id, choice)
@@ -253,6 +261,24 @@ func _on_choice_pressed(choice: Dictionary) -> void:
 		if modal_dim_bg:
 			modal_dim_bg.visible = false
 	GameManager.resume_from_decision()
+
+var _current_decision_type_cache: String = ""
+func _current_decision_type() -> String:
+	for d in DecisionQueue.get_all_pending():
+		if d.id == _current_decision_id:
+			return str(d.type)
+	return ""
+func _current_decision_payload() -> Dictionary:
+	for d in DecisionQueue.get_all_pending():
+		if d.id == _current_decision_id:
+			return d.payload as Dictionary
+	return {}
+
+func _get_battle_scene() -> Control:
+	for child in get_children():
+		if child.name == "BattleScene" and child is Control:
+			return child
+	return null
 
 func _on_auto_skip() -> void:
 	if not TimeManager.auto_progress_enabled:
@@ -311,6 +337,17 @@ func _apply_result(code: String) -> void:
 		"DIPLOMACY_REFUSE":
 			GameWorld.modify_resource("prosperity", -5)
 			GameWorld.log_event("외교 거절: 명성 -5")
+		"BATTLE_BANDITS_FIGHT":
+			# 실제 전투 로직은 BattleScene.start_battle에서 처리
+			pass
+		"BATTLE_BANDITS_HIDE":
+			var enemy: int = 4
+			GameWorld.modify_resource("food", -enemy)
+			GameWorld.log_event("숨기 — 식량 %d 손실" % enemy)
+		"BATTLE_BANDITS_BRIBE":
+			GameWorld.modify_resource("gold", -30)
+			GameWorld.modify_resource("prosperity", -2)
+			GameWorld.log_event("뇌물 — -30 골드, -2 명성")
 		_:
 			push_warning("[Main] 알 수 없는 결과 코드: %s" % code)
 
@@ -589,13 +626,51 @@ func _run_verify() -> void:
 	print("  ✓ _on_auto_skip 호출 후 모달 visible=%s (auto ON → 자동 닫힘)" % str(modal_after_auto_close))
 	assert(not modal_after_auto_close, "자동 ON에서 _on_auto_skip 호출 후 모달은 닫혀야 함")
 
-	# 12) 타이틀 화면 라운드트립
-	print("[12] 타이틀 화면 라운드트립")
-	# 저장 파일 확인 → '이어하기' 활성
+	# 12.5) 전투 화면 검증 — BattleScene 인스턴스 + 메서드 존재
+	print("[12.5] 전투 화면 검증")
+	var battle: Control = get_node_or_null("BattleScene") as Control
+	if battle:
+		print("  ✓ BattleScene 인스턴스: %s" % battle.scene_file_path)
+		assert(battle.has_method("start_battle"), "start_battle 메서드 필요")
+		assert(battle.has_method("_on_fight_pressed"), "_on_fight_pressed 메서드 필요")
+		# 시뮬: 가짜 전투 시작
+		battle.start_battle(4)
+		await get_tree().process_frame
+		assert(battle.visible, "BattleScene가 visible이어야 함")
+		var allies_grid_node: Node = battle.get_node_or_null("GridRow/AlliesCard/AlliesVBox/AlliesGrid")
+		var enemies_grid_node: Node = battle.get_node_or_null("GridRow/EnemiesCard/EnemiesVBox/EnemiesGrid")
+		var allies_count: int = allies_grid_node.get_child_count() if allies_grid_node else 0
+		var enemies_count: int = enemies_grid_node.get_child_count() if enemies_grid_node else 0
+		print("  ✓ 전투 그리드: 아군 %d, 적군 %d" % [allies_count, enemies_count])
+		assert(allies_count == 5, "아군 5명 필요")
+		assert(enemies_count == 4, "적군 4명 필요")
+		# 결정 큐에 BANDIT_RAID push
+		DecisionQueue.push("BANDIT_RAID", {
+			"title": "BANDIT_RAID test",
+			"description": "전투 화면 검증",
+			"enemy_count": 4,
+			"choices": [
+				{ "id": "fight", "label": "전투", "result": "BATTLE_BANDITS_FIGHT" },
+				{ "id": "hide",  "label": "숨기", "result": "BATTLE_BANDITS_HIDE" },
+				{ "id": "bribe", "label": "뇌물", "result": "BATTLE_BANDITS_BRIBE" },
+			],
+		}, DecisionQueue.Priority.HIGH)
+		await get_tree().process_frame
+		var bandit_count: int = 0
+		for d in DecisionQueue.get_all_pending():
+			if d.type == "BANDIT_RAID":
+				bandit_count += 1
+		print("  ✓ BANDIT_RAID 시나리오 push: %d건" % bandit_count)
+		assert(bandit_count >= 1, "BANDIT_RAID 시나리오 push 안 됨")
+		battle.visible = false   # 정리
+	else:
+		print("[WARN] BattleScene 인스턴스 없음")
+
+	# 13) 타이틀 라운드트립
+	print("[13] 타이틀 화면 라운드트립")
 	var saves_before: Array = SaveManager.list_saves()
 	print("  저장 파일: %s" % str(saves_before))
 	if saves_before.is_empty():
-		# 강제 저장
 		SaveManager.save_game("verify_title")
 		saves_before = SaveManager.list_saves()
 	var ts: Control = get_node_or_null("TitleLayer/TitleScreen") as Control
@@ -605,18 +680,15 @@ func _run_verify() -> void:
 		var continue_btn: Button = ts.get_node_or_null("CenterBox/ContinueButton") as Button
 		if continue_btn:
 			print("  ✓ TitleScreen '이어하기' 버튼 활성: disabled=%s" % str(continue_btn.disabled))
-			assert(not continue_btn.disabled, "저장 있는데 '이어하기' 버튼이 비활성")
-	# 진입/퇴장 라운드트립
+			assert(not continue_btn.disabled)
 	_enter_title_mode()
 	await get_tree().process_frame
 	assert(not _in_game_mode)
 	print("  ✓ 타이틀 진입: _in_game_mode=false")
-	# 새 게임으로 진입
 	_on_title_start_new()
 	await get_tree().process_frame
 	assert(_in_game_mode)
 	print("  ✓ 게임 진입: _in_game_mode=true")
-	# 다시 타이틀로
 	_on_title_menu_pressed()
 	await get_tree().process_frame
 	assert(not _in_game_mode)

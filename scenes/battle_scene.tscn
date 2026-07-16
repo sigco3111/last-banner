@@ -1,0 +1,129 @@
+[gd_scene load_steps=2 format=3 uid="uid://bbattlescenev3"]
+
+[ext_resource type="Script" path="res://scripts/battle.gd" id="1_battle"]
+
+[node name="BattleScene" type="Control"]
+visible = false
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_battle")
+
+[node name="BG" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.08, 0.06, 0.05, 1)
+
+[node name="TopBar" type="PanelContainer" parent="."]
+anchor_right = 1.0
+offset_bottom = 60.0
+
+[node name="TopVBox" type="VBoxContainer" parent="TopBar"]
+
+[node name="TitleLabel" type="Label" parent="TopBar/TopVBox"]
+text = "⚔️ 전투 — 약탈자 습격"
+theme_override_font_sizes/font_size = 22
+
+[node name="SubtitleLabel" type="Label" parent="TopBar/TopVBox"]
+text = "강도를 어떻게 대응하시겠습니까?"
+theme_override_font_sizes/font_size = 14
+modulate = Color(0.7, 0.7, 0.7, 1)
+
+[node name="GridRow" type="HBoxContainer" parent="."]
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 80.0
+offset_right = -24.0
+offset_bottom = -120.0
+theme_override_constants/separation = 24
+
+[node name="AlliesCard" type="PanelContainer" parent="GridRow"]
+size_flags_horizontal = 3
+
+[node name="AlliesVBox" type="VBoxContainer" parent="GridRow/AlliesCard"]
+
+[node name="AlliesTitle" type="Label" parent="GridRow/AlliesCard/AlliesVBox"]
+text = "👥 아군 (rounded grid)"
+theme_override_font_sizes/font_size = 16
+
+[node name="AlliesGrid" type="GridContainer" parent="GridRow/AlliesCard/AlliesVBox"]
+columns = 5
+custom_minimum_size = Vector2(0, 360)
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+
+[node name="VSLabel" type="Label" parent="GridRow"]
+text = "⚔\nVS\n⚔"
+horizontal_alignment = 1
+vertical_alignment = 1
+custom_minimum_size = Vector2(40, 0)
+theme_override_font_sizes/font_size = 24
+modulate = Color(1, 0.7, 0.3, 1)
+
+[node name="EnemiesCard" type="PanelContainer" parent="GridRow"]
+size_flags_horizontal = 3
+
+[node name="EnemiesVBox" type="VBoxContainer" parent="GridRow/EnemiesCard"]
+
+[node name="EnemiesTitle" type="Label" parent="GridRow/EnemiesCard/EnemiesVBox"]
+text = "💀 적군 (random positioning)"
+theme_override_font_sizes/font_size = 16
+
+[node name="EnemiesGrid" type="GridContainer" parent="GridRow/EnemiesCard/EnemiesVBox"]
+columns = 5
+custom_minimum_size = Vector2(0, 360)
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+
+[node name="BottomCard" type="PanelContainer" parent="."]
+anchor_top = 0.85
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -100.0
+offset_bottom = 0.0
+
+[node name="BottomVBox" type="VBoxContainer" parent="BottomCard"]
+
+[node name="StatusLabel" type="Label" parent="BottomCard/BottomVBox"]
+text = "상태: 결정 대기"
+theme_override_font_sizes/font_size = 16
+
+[node name="DiceLabel" type="Label" parent="BottomCard/BottomVBox"]
+text = "🎲 —"
+theme_override_font_sizes/font_size = 16
+
+[node name="ChoicesRow" type="HBoxContainer" parent="BottomCard/BottomVBox"]
+theme_override_constants/separation = 12
+
+[node name="FightButton" type="Button" parent="BottomCard/BottomVBox/ChoicesRow"]
+custom_minimum_size = Vector2(160, 56)
+text = "⚔️ 출격 (전투)"
+theme_override_font_sizes/font_size = 16
+
+[node name="HideButton" type="Button" parent="BottomCard/BottomVBox/ChoicesRow"]
+custom_minimum_size = Vector2(160, 56)
+text = "🛡 숨기 (재물 손실)"
+theme_override_font_sizes/font_size = 16
+
+[node name="BribeButton" type="Button" parent="BottomCard/BottomVBox/ChoicesRow"]
+custom_minimum_size = Vector2(160, 56)
+text = "💰 뇌물 (골드 손실)"
+theme_override_font_sizes/font_size = 16
+
+[node name="ResultLabel" type="Label" parent="BottomCard/BottomVBox"]
+text = ""
+theme_override_font_sizes/font_size = 14
+modulate = Color(0.95, 0.9, 0.5, 1)
+
+[node name="CloseButton" type="Button" parent="."]
+anchor_left = 1.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = -80.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 56.0
+text = "✕ 닫기"

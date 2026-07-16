@@ -5,12 +5,14 @@ extends Node
 const RECRUIT_VISITOR_INTERVAL_MIN := 1200  # 20시간마다 방문객
 const FOOD_CHECK_INTERVAL_MIN := 2400        # 40시간마다 식량 체크
 const DIPLOMACY_INTERVAL_MIN := 2400         # 40시간마다 외교 요청
+const BANDIT_RAID_INTERVAL_MIN := 720         # 12시간마다 약탈자 습격 (HIGH)
 const DECISION_MAX_PER_DAY := 8              # 하루 최대 8건 (자동 진행 빠른 속도에 맞춤)
 
 var _decisions_today: int = 0
 var _last_recruit_visitor: int = 0
 var _last_food_check: int = 0
 var _last_diplomacy: int = 0
+var _last_bandit_raid: int = 0
 var _current_day: int = -1
 
 func _ready() -> void:
@@ -31,6 +33,10 @@ func _on_tick(game_time: int) -> void:
 	if game_time - _last_diplomacy >= DIPLOMACY_INTERVAL_MIN:
 		_last_diplomacy = game_time
 		_maybe_diplomacy(game_time)
+	# 약탈자 습격 (HIGH)
+	if game_time - _last_bandit_raid >= BANDIT_RAID_INTERVAL_MIN:
+		_last_bandit_raid = game_time
+		_maybe_bandit_raid(game_time)
 
 func _on_day(_d: int) -> void:
 	_decisions_today = 0
@@ -55,6 +61,25 @@ func _maybe_visitor(_game_time: int) -> void:
 		],
 		"gold_offer": gold_offer,
 	}, DecisionQueue.Priority.LOW)
+	_decisions_today += 1
+
+## 약탈자 습격 (HIGH) — 출격/숨기/뇌물 선택
+func _maybe_bandit_raid(_game_time: int) -> void:
+	if _decisions_today >= DECISION_MAX_PER_DAY:
+		return
+	if randf() > 0.4:   # 40% 확률
+		return
+	var enemy_count: int = 3 + randi() % 3   # 3~5명
+	DecisionQueue.push("BANDIT_RAID", {
+		"title": "약탈자 습격!",
+		"description": "약탈자 %d명이 영지를 습격했습니다. 출격 / 숨기 / 뇌물 중 하나를 선택하세요." % enemy_count,
+		"enemy_count": enemy_count,
+		"choices": [
+			{ "id": "fight", "label": "⚔️ 출격 (전투로 해결)", "result": "BATTLE_BANDITS_FIGHT" },
+			{ "id": "hide",  "label": "🛡 숨기 (식량 손실)",    "result": "BATTLE_BANDITS_HIDE" },
+			{ "id": "bribe", "label": "💰 뇌물 (골드 손실)",   "result": "BATTLE_BANDITS_BRIBE" },
+		],
+	}, DecisionQueue.Priority.HIGH)
 	_decisions_today += 1
 
 ## 외교 요청 — 동맹/교역/거절 선택지
@@ -112,6 +137,7 @@ func save_state() -> Dictionary:
 		"last_recruit_visitor": _last_recruit_visitor,
 		"last_food_check": _last_food_check,
 		"last_diplomacy": _last_diplomacy,
+		"last_bandit_raid": _last_bandit_raid,
 		"current_day": _current_day,
 	}
 
@@ -120,4 +146,5 @@ func load_state(data: Dictionary) -> void:
 	_last_recruit_visitor = data.get("last_recruit_visitor", 0)
 	_last_food_check = data.get("last_food_check", 0)
 	_last_diplomacy = data.get("last_diplomacy", 0)
+	_last_bandit_raid = data.get("last_bandit_raid", 0)
 	_current_day = data.get("current_day", -1)
