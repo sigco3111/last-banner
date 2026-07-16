@@ -241,17 +241,23 @@ func _populate_modal(decision: Dictionary) -> void:
 			modal_choices.add_child(btn)
 
 func _on_choice_pressed(choice: Dictionary) -> void:
+	print("[Main] _on_choice_pressed: choice=%s" % str(choice))
 	if _current_decision_id < 0:
 		return
 	var result_code: String = choice.get("result", "")
+	print("[Main] result_code=%s, current_id=%d" % [result_code, _current_decision_id])
 	var decision_type: String = _current_decision_type()
+	print("[Main] decision_type=%s" % decision_type)
 	# BANDIT_RAID면 BattleScene로 라우팅
 	if decision_type == "BANDIT_RAID" and result_code == "BATTLE_BANDITS_FIGHT":
-		# BattleScene 찾고 표시
+		print("[Main] BATTLE_BANDITS_FIGHT 분기 — BattleScene.start_battle 호출")
 		var battle: Control = _get_battle_scene()
+		print("[Main] battle=%s" % ("OK" if battle else "NULL"))
 		if battle:
 			var enemy_count: int = int(_current_decision_payload().get("enemy_count", 4))
+			print("[Main] BattleScene.start_battle(%d) 호출" % enemy_count)
 			battle.start_battle(enemy_count)
+			print("[Main] BattleScene.visible=%s" % str(battle.visible))
 	if result_code != "":
 		_apply_result(result_code)
 	DecisionQueue.resolve(_current_decision_id, choice)
