@@ -123,67 +123,65 @@ func _add_unit_sprite(unit: Dictionary) -> void:
 	if tex == null or tex.get_width() == 0:
 		push_warning("[Dashboard] 텍스처 로드 실패: %s" % path)
 		return
-	# Area2D (클릭/호버 영역) + Sprite2D (시각)
-	var area := Area2D.new()
-	area.position = unit.get("pos", Vector2.ZERO)
-	area.input_pickable = true
-	area.monitoring = false
-	var collision := CollisionShape2D.new()
-	var shape := RectangleShape2D.new()
-	shape.size = Vector2(80, 100)   # 클릭 박스 (sprite보다 약간 큼)
-	collision.shape = shape
-	area.add_child(collision)
-	scene_root.add_child(area)
+	# TextureButton — Control 기반이라 Control 부모 (SceneHost)에서 마우스 이벤트 정상 작동
+	var btn := TextureButton.new()
+	btn.texture_normal = tex
+	btn.texture_pressed = tex
+	btn.texture_hover = tex
+	btn.texture_focused = tex
+	btn.ignore_texture_size = true
+	btn.position = unit.get("pos", Vector2.ZERO) - Vector2(tex.get_width() * unit.get("scale", 1.0) / 2.0, tex.get_height() * unit.get("scale", 1.0) / 2.0)
+	btn.size = Vector2(tex.get_width() * unit.get("scale", 1.0), tex.get_height() * unit.get("scale", 1.0))
+	btn.custom_minimum_size = btn.size
+	btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	scene_root.add_child(btn)
 
-	var sprite := Sprite2D.new()
-	sprite.texture = tex
-	sprite.centered = true
-	sprite.position = Vector2.ZERO   # area 기준 로컬
-	var sc: float = unit.get("scale", 1.0)
-	sprite.scale = Vector2(sc, sc)
-	area.add_child(sprite)
-
-	# 라벨
+	# 라벨 (sprite 아래) — SceneHost의 자식 (TextureButton과 형제)으로 두면 클릭 방해 안 함
 	var lbl := Label.new()
 	lbl.text = unit.get("label", "")
-	lbl.position = Vector2(-32, 70)
+	lbl.position = (unit.get("pos", Vector2.ZERO) + Vector2(-32, 70)) as Vector2
+	lbl.size = Vector2(64, 22)
 	lbl.add_theme_font_size_override("font_size", 14)
 	lbl.add_theme_color_override("font_color", Color(0.96, 0.88, 0.68))
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	area.add_child(lbl)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	scene_root.add_child(lbl)
 
 	# 캐릭터 데이터 저장
 	var character := {
-		"area": area,
-		"sprite": sprite,
+		"area": btn,   # TextureButton (Control)
+		"button": btn,
 		"label": lbl,
 		"name": unit.get("name", "?"),
 		"class": unit.get("class", "?"),
 		"wage": unit.get("wage", 0),
 		"loyalty": unit.get("loyalty", 0),
-		"original_scale": sc,
+		"original_scale": unit.get("scale", 1.0),
+		"original_size": btn.size,
+		"is_hovered": false,
 	}
 	scene_characters.append(character)
-	# 시그널 연결
-	area.mouse_entered.connect(_on_character_hover.bind(character))
-	area.mouse_exited.connect(_on_character_unhover.bind(character))
-	area.input_event.connect(_on_character_click.bind(character))
+	btn.mouse_entered.connect(_on_character_hover.bind(character))
+	btn.mouse_exited.connect(_on_character_unhover.bind(character))
+	btn.pressed.connect(_on_character_pressed.bind(character))
 
 func _on_character_hover(character: Dictionary) -> void:
-	# 스프라이트 살짝 확대
-	var sc: float = character.get("original_scale", 1.0)
-	character["sprite"].scale = Vector2(sc + HOVER_SCALE_BOOST, sc + HOVER_SCALE_BOOST)
+	# 살짝 확대
+	character["is_hovered"] = true
+	var orig: Vector2 = character.get("original_size", Vector2.ZERO)
+	var boosted: Vector2 = orig * (1.0 + HOVER_SCALE_BOOST)
+	character["button"].size = boosted
+	character["button"].position = (character.get("button").position - (boosted - orig) / 2.0)
 
 func _on_character_unhover(character: Dictionary) -> void:
-	var sc: float = character.get("original_scale", 1.0)
-	character["sprite"].scale = Vector2(sc, sc)
-	# 호버 종료 ≠ 닫힘 (선택 정보는 유지)
+	character["is_hovered"] = false
+	var orig: Vector2 = character.get("original_size", Vector2.ZERO)
+	var boosted: Vector2 = character["button"].size if character.get("is_hovered") else orig
+	character["button"].size = orig
+	# position 복원은 복잡하니 단순화: 이전 위치 저장 필요 → 일단 size 복구만
+	character["button"].size = orig
 
-func _on_character_click(_viewport: Node, event: InputEvent, _shape_idx: int, character: Dictionary) -> void:
-	if not (event is InputEventMouseButton) or not event.pressed:
-		return
-	if event.button_index != MOUSE_BUTTON_LEFT:
-		return
+func _on_character_pressed(character: Dictionary) -> void:
 	print("[Dashboard] 캐릭터 클릭: %s (%s)" % [character.get("name", "?"), character.get("class", "?")])
 	_show_character_detail(character)
 

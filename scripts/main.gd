@@ -420,7 +420,15 @@ func _run_verify() -> void:
 	print("[8.5] 외교 시나리오 MEDIUM 모달")
 	DecisionQueue.resolve(_current_decision_id, {"id": "test", "label": "test"}) if _current_decision_id > 0 else null
 	_current_decision_id = -1
-	EventEngine._maybe_diplomacy(Time.get_ticks_msec())
+	# 결정 큐 직접 push (rand 게이트 회피)
+	DecisionQueue.push("DIPLOMACY", {
+		"title": "외교: 동맹 제안",
+		"description": "테스트용 동맹 제안",
+		"choices": [
+			{ "id": "accept", "label": "수락", "result": "DIPLOMACY_ALLIANCE_ACCEPT" },
+			{ "id": "refuse", "label": "거절", "result": "DIPLOMACY_REFUSE" },
+		],
+	}, DecisionQueue.Priority.MEDIUM)
 	await get_tree().process_frame
 	var pending_after: Array = DecisionQueue.get_all_pending()
 	var diplomacy_count: int = 0
@@ -435,22 +443,25 @@ func _run_verify() -> void:
 		priorities[pname] = priorities.get(pname, 0) + 1
 	print("  ✓ 결정 큐 우선순위 분포: %s" % str(priorities))
 
-	# 9) 화면 그리기 검증 (ManorDashboard sprite/avatar)
+	# 9) 화면 그리기 검증
 	print("[9] ManorDashboard 화면 검증")
 	var dashboard: Control = get_node_or_null("ManorDashboard") as Control
 	if dashboard:
 		var scene_root_node: Node = dashboard.get_node_or_null("CenterRoot/LeftColumn/ManorScene/SceneHost/SceneRoot")
 		assert(scene_root_node != null, "scene_root 없음")
-		var sprite_count: int = 0
+		var tex_btn_count: int = 0
 		var area_count: int = 0
+		var sprite_count: int = 0
 		var tex_rect_count: int = 0
 		for child in scene_root_node.get_children():
-			if child is Sprite2D:
-				sprite_count += 1
+			if child is TextureButton:
+				tex_btn_count += 1
 			elif child is Area2D:
 				area_count += 1
-		print("  ✓ Manor Scene sprites: %d, Area2D (click areas): %d" % [sprite_count, area_count])
-		assert(sprite_count == 5 or area_count == 5, "5명 sprite/Area 필요 (sprite=%d, area=%d)" % [sprite_count, area_count])
+			elif child is Sprite2D:
+				sprite_count += 1
+		print("  ✓ TextureButton(클릭): %d, Area2D(레거시): %d, Sprite2D(레거시): %d" % [tex_btn_count, area_count, sprite_count])
+		assert(tex_btn_count == 5 or area_count == 5 or sprite_count == 5, "5명 캐릭터 필요")
 		var roster_node: Node = dashboard.get_node_or_null("CenterRoot/RightColumn/RosterList/RosterScroll/RosterVBox")
 		assert(roster_node != null)
 		for child in roster_node.get_children():
@@ -551,7 +562,13 @@ func _run_verify() -> void:
 	while not DecisionQueue.get_all_pending().is_empty():
 		DecisionQueue.resolve(DecisionQueue.get_all_pending()[0].id, {"id": "force", "label": "force"})
 	EventEngine._decisions_today = 0
-	EventEngine._maybe_visitor(Time.get_ticks_msec() + 20000)
+	# 결정 큐 우회 직접 push (rand 게이트 회피)
+	var new_low_id: int = DecisionQueue.push("VISITOR", {
+		"title": "방문객 도착",
+		"description": "테스트용 LOW",
+		"choices": [{ "id": "yes", "label": "환영", "result": "VISITOR_REJECT" }],
+	}, DecisionQueue.Priority.LOW)
+	print("  강제 LOW push: id=%d" % new_low_id)
 	await get_tree().process_frame
 	TimeManager.auto_progress_enabled = true
 	_check_decision_queue()
