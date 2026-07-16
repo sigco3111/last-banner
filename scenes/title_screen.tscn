@@ -1,0 +1,66 @@
+[gd_scene load_steps=2 format=3 uid="uid://btitlescreenv2"]
+
+[ext_resource type="Script" path="res://scripts/title_screen.gd" id="1_title"]
+
+[node name="TitleScreen" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_title")
+
+[node name="BG" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.08, 0.06, 0.05, 1)
+
+[node name="CenterBox" type="VBoxContainer" parent="."]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -260.0
+offset_top = -200.0
+offset_right = 260.0
+offset_bottom = 200.0
+theme_override_constants/separation = 20
+
+[node name="Logo" type="Label" parent="CenterBox"]
+text = "🏰 LAST BANNER"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 48
+
+[node name="Tagline" type="Label" parent="CenterBox"]
+text = "변방 영지 운영 로그라이크"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 18
+modulate = Color(0.85, 0.78, 0.62, 1)
+
+[node name="Spacer1" type="Control" parent="CenterBox"]
+custom_minimum_size = Vector2(0, 20)
+
+[node name="StartButton" type="Button" parent="CenterBox"]
+custom_minimum_size = Vector2(280, 64)
+text = "▶ 새로 시작"
+theme_override_font_sizes/font_size = 20
+
+[node name="ContinueButton" type="Button" parent="CenterBox"]
+custom_minimum_size = Vector2(280, 64)
+text = "⏵ 이어하기"
+disabled = true
+theme_override_font_sizes/font_size = 20
+
+[node name="Spacer2" type="Control" parent="CenterBox"]
+custom_minimum_size = Vector2(0, 12)
+
+[node name="StatusLabel" type="Label" parent="CenterBox"]
+text = ""
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 14
+modulate = Color(0.7, 0.7, 0.7, 1)
+
+[node name="Spacer3" type="Control" parent="CenterBox"]
+custom_minimum_size = Vector2(0, 12)
+
+[node name="QuitButton" type="Button" parent="CenterBox"]
+custom_minimum_size = Vector2(280, 48)
+text = "✕ 게임 종료"
+theme_override_font_sizes/font_size = 16

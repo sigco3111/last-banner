@@ -1,12 +1,12 @@
 extends Node2D
-## Last Banner v2 — main hub
-## 자동 진행 + 결정 큐 알림 + 자원 카드 + LB_VERIFY 모드
+## Last Banner v2.2 — 메인 허브 (타이틀 ↔ 게임 모드 토글)
 
 const LB_VERIFY := "LB_VERIFY"
 
 var _verify_mode: bool = false
+var _in_game_mode: bool = false   # true: 게임 진행 / false: 타이틀 화면
 
-# 일반 노드 참조 (tscn 검증 후 동적 검색 사용 — @onready 인스턴스화 순서 함정 회피)
+# 게임 모드 노드
 var time_label: Label = null
 var gold_label: Label = null
 var food_label: Label = null
@@ -17,6 +17,7 @@ var toggle_button: Button = null
 var advance_button: Button = null
 var save_button: Button = null
 var load_button: Button = null
+var title_menu_button: Button = null
 var decision_modal: PanelContainer = null
 var modal_dim_bg: ColorRect = null
 var modal_title: Label = null
@@ -24,9 +25,16 @@ var modal_desc: Label = null
 var modal_priority: Label = null
 var modal_choices: VBoxContainer = null
 
+# 결정 모달 상태
 var _last_queue_size: int = 0
 var _current_decision_id: int = -1
 var _auto_skip_timer: SceneTreeTimer = null
+
+# 게임/타이틀 노드 (씬 인스턴스)
+var manor_layer: CanvasLayer = null
+var title_layer: CanvasLayer = null
+var ui_layer: CanvasLayer = null
+var title_screen: Control = null
 
 func _ready() -> void:
 	_verify_mode = OS.has_environment(LB_VERIFY)
@@ -35,37 +43,38 @@ func _ready() -> void:
 		return
 	_find_nodes()
 	_connect_signals()
-	GameManager.start_new_game("default")
-	_refresh_all()
+	_enter_title_mode()   # 시작은 타이틀 화면
 
 func _find_nodes() -> void:
-	# 동적 검색 — main.tscn 인스턴스화 완료 후 호출 (call_deferred)
-	var ui: CanvasLayer = get_node_or_null("UI")
-	if ui == null:
-		push_error("[Main] UI CanvasLayer 없음")
-		return
-	time_label = ui.get_node_or_null("TopResourceBar/ResourceRow/TimeLabel") as Label
-	gold_label = ui.get_node_or_null("TopResourceBar/ResourceRow/GoldLabel") as Label
-	food_label = ui.get_node_or_null("TopResourceBar/ResourceRow/FoodLabel") as Label
-	pop_label = ui.get_node_or_null("TopResourceBar/ResourceRow/PopLabel") as Label
-	prosper_label = ui.get_node_or_null("TopResourceBar/ResourceRow/ProsperLabel") as Label
-	last_event_label = ui.get_node_or_null("TopResourceBar/ResourceRow/LastEventLabel") as Label
-	toggle_button = ui.get_node_or_null("BottomButtonRow/HBox/ToggleAutoButton") as Button
-	advance_button = ui.get_node_or_null("BottomButtonRow/HBox/AdvanceButton") as Button
-	save_button = ui.get_node_or_null("BottomButtonRow/HBox/SaveButton") as Button
-	load_button = ui.get_node_or_null("BottomButtonRow/HBox/LoadButton") as Button
-	modal_dim_bg = get_node_or_null("ModalLayer/DimBG") as ColorRect
-	decision_modal = get_node_or_null("ModalLayer/DecisionModal") as PanelContainer
-	if decision_modal:
-		modal_title = decision_modal.get_node_or_null("ModalVBox/ModalTitle") as Label
-		modal_desc = decision_modal.get_node_or_null("ModalVBox/ModalDesc") as Label
-		modal_priority = decision_modal.get_node_or_null("ModalVBox/ModalPriority") as Label
-		modal_choices = decision_modal.get_node_or_null("ModalVBox/ModalChoices") as VBoxContainer
-	var modal_state: String = "OK" if decision_modal else "NULL"
-	var dim_state: String = "OK" if modal_dim_bg else "NULL"
-	print("[Main] 동적 노드 검색 완료 (modal=%s, dim_bg=%s)" % [modal_state, dim_state])
+	manor_layer = get_node_or_null("ManorLayer") as CanvasLayer
+	title_layer = get_node_or_null("TitleLayer") as CanvasLayer
+	ui_layer = get_node_or_null("UI") as CanvasLayer
+	if title_layer:
+		title_screen = title_layer.get_node_or_null("TitleScreen") as Control
+	# 게임 모드 자원 노드
+	var ui: CanvasLayer = ui_layer
+	if ui:
+		time_label = ui.get_node_or_null("TopResourceBar/ResourceRow/TimeLabel") as Label
+		gold_label = ui.get_node_or_null("TopResourceBar/ResourceRow/GoldLabel") as Label
+		food_label = ui.get_node_or_null("TopResourceBar/ResourceRow/FoodLabel") as Label
+		pop_label = ui.get_node_or_null("TopResourceBar/ResourceRow/PopLabel") as Label
+		prosper_label = ui.get_node_or_null("TopResourceBar/ResourceRow/ProsperLabel") as Label
+		last_event_label = ui.get_node_or_null("TopResourceBar/ResourceRow/LastEventLabel") as Label
+		toggle_button = ui.get_node_or_null("BottomButtonRow/HBox/ToggleAutoButton") as Button
+		advance_button = ui.get_node_or_null("BottomButtonRow/HBox/AdvanceButton") as Button
+		save_button = ui.get_node_or_null("BottomButtonRow/HBox/SaveButton") as Button
+		load_button = ui.get_node_or_null("BottomButtonRow/HBox/LoadButton") as Button
+		title_menu_button = ui.get_node_or_null("BottomButtonRow/HBox/TitleMenuButton") as Button
+		modal_dim_bg = get_node_or_null("ModalLayer/DimBG") as ColorRect
+		decision_modal = get_node_or_null("ModalLayer/DecisionModal") as PanelContainer
+		if decision_modal:
+			modal_title = decision_modal.get_node_or_null("ModalVBox/ModalTitle") as Label
+			modal_desc = decision_modal.get_node_or_null("ModalVBox/ModalDesc") as Label
+			modal_priority = decision_modal.get_node_or_null("ModalVBox/ModalPriority") as Label
+			modal_choices = decision_modal.get_node_or_null("ModalVBox/ModalChoices") as VBoxContainer
 
 func _connect_signals() -> void:
+	# 게임 모드 버튼
 	if toggle_button:
 		toggle_button.pressed.connect(_on_toggle_auto_pressed)
 	if advance_button:
@@ -74,17 +83,83 @@ func _connect_signals() -> void:
 		save_button.pressed.connect(_on_save_pressed)
 	if load_button:
 		load_button.pressed.connect(_on_load_pressed)
+	if title_menu_button:
+		title_menu_button.pressed.connect(_on_title_menu_pressed)
+	# 게임 autoload 시그널
 	TimeManager.tick_advanced.connect(_on_tick)
 	TimeManager.day_changed.connect(_on_day)
 	GameWorld.resource_changed.connect(_refresh_resource)
 	GameWorld.event_logged.connect(_on_event_logged)
+	# 타이틀 화면 시그널
+	if title_screen and title_screen.has_signal("start_new_game"):
+		title_screen.start_new_game.connect(_on_title_start_new)
+	if title_screen and title_screen.has_signal("continue_game"):
+		title_screen.continue_game.connect(_on_title_continue)
+	print("[Main] 동적 노드 + 시그널 연결 완료")
 
 func _process(_delta: float) -> void:
-	if _verify_mode:
+	if _verify_mode or not _in_game_mode:
 		return
 	_refresh_time_label()
 	_check_decision_queue()
 
+# ============================================================
+# 모드 전환
+# ============================================================
+func _enter_title_mode() -> void:
+	_in_game_mode = false
+	if title_layer:
+		title_layer.visible = true
+	if ui_layer:
+		ui_layer.visible = false
+	if manor_layer:
+		manor_layer.visible = false
+	# 결정 모달 강제 닫기
+	if decision_modal: decision_modal.visible = false
+	if modal_dim_bg: modal_dim_bg.visible = false
+	GameManager.current_state = GameManager.State.MENU
+	# 타이틀 화면 갱신
+	if title_screen and title_screen.has_method("refresh"):
+		title_screen.refresh()
+	print("[Main] 타이틀 모드 진입")
+
+func _enter_game_mode() -> void:
+	_in_game_mode = true
+	if title_layer:
+		title_layer.visible = false
+	if ui_layer:
+		ui_layer.visible = true
+	if manor_layer:
+		manor_layer.visible = true
+	GameManager.current_state = GameManager.State.PLAYING
+	_refresh_all()
+	print("[Main] 게임 모드 진입")
+
+func _on_title_start_new() -> void:
+	print("[Main] 새 게임 시작")
+	GameManager.start_new_game("default")
+	_enter_game_mode()
+
+func _on_title_continue() -> void:
+	print("[Main] 이어하기 — 최근 저장 로드")
+	var saves: Array = SaveManager.list_saves()
+	if not saves.is_empty():
+		var latest: String = saves[0]
+		SaveManager.load_game(latest)
+		GameManager.start_new_game(latest)
+		_enter_game_mode()
+	else:
+		print("[Main] 저장 없음 → 게임 시작")
+		_on_title_start_new()
+
+func _on_title_menu_pressed() -> void:
+	# 게임 → 타이틀 복귀. 자동 저장은 종료 직전에 1회 더.
+	SaveManager.save_game("autosave")
+	_enter_title_mode()
+
+# ============================================================
+# 게임 모드 (이전 main.gd에서 이식)
+# ============================================================
 func _refresh_all() -> void:
 	_refresh_time_label()
 	_refresh_resource("gold", GameWorld.gold)
@@ -100,9 +175,9 @@ func _refresh_time_label() -> void:
 	time_label.text = "Day %d  |  %02d:%02d  |  자동 진행: %s" % [
 		TimeManager.day, hour, minute,
 		"ON" if TimeManager.auto_progress_enabled else "OFF"
-	]  # 대기 결정 카운터는 모달로 표시 → 상태바에서 제거
+	]
 
-func _refresh_resource(resource: String, _value: int) -> void:
+func _refresh_resource(_resource: String, _value: int) -> void:
 	if gold_label: gold_label.text = "💰 금: %d" % GameWorld.gold
 	if food_label: food_label.text = "🌾 식량: %d" % GameWorld.food
 	if pop_label: pop_label.text = "👥 인구: %d" % GameWorld.population
@@ -120,16 +195,12 @@ func _check_decision_queue() -> void:
 		_last_queue_size = 0
 		return
 	if decision_modal.visible:
-		return   # 이미 모달 표시 중
-	# 큐 길이 증가 시에만 표시
+		return
 	if pending.size() > _last_queue_size:
 		_show_next_decision()
 	_last_queue_size = pending.size()
 
 func _show_next_decision() -> void:
-	# 모든 우선순위 모달
-	# - 자동 진행 ON: 모든 우선순위 자동 처리 (LOW 3초 / 그 외 5초 후 default 선택)
-	# - 자동 진행 OFF: 사용자 결정까지 무한 대기
 	for d in DecisionQueue.get_all_pending():
 		if d.id > _current_decision_id:
 			_current_decision_id = d.id
@@ -143,7 +214,6 @@ func _show_next_decision() -> void:
 				d.payload.get("title", ""),
 				"ON" if TimeManager.auto_progress_enabled else "OFF"
 			])
-			# 자동 진행 ON일 때만 자동 결정 타이머 설정
 			if TimeManager.auto_progress_enabled:
 				var delay: float = 3.0 if d.priority == DecisionQueue.Priority.LOW else 5.0
 				_auto_skip_timer = get_tree().create_timer(delay)
@@ -161,10 +231,8 @@ func _populate_modal(decision: Dictionary) -> void:
 			DecisionQueue.Priority.CRITICAL: modal_priority.modulate = Color(1, 0.3, 0.3)
 			_: modal_priority.modulate = Color(0.7, 0.7, 0.7)
 	if modal_choices:
-		# 기존 버튼 제거
 		for child in modal_choices.get_children():
 			child.queue_free()
-		# 선택지 버튼 동적 생성
 		for choice in decision.payload.get("choices", []):
 			var btn := Button.new()
 			btn.text = choice.get("label", "선택")
@@ -187,9 +255,8 @@ func _on_choice_pressed(choice: Dictionary) -> void:
 	GameManager.resume_from_decision()
 
 func _on_auto_skip() -> void:
-	# 자동 진행 ON 상태에서만 호출됨 (사용자가 안 고른 경우 default 선택으로 자동 resolve)
 	if not TimeManager.auto_progress_enabled:
-		return  # OFF면 안 닫음 (사용자 결정 대기)
+		return
 	if _current_decision_id < 0 or not decision_modal or not decision_modal.visible:
 		return
 	var default_choice := _default_low_choice()
@@ -205,14 +272,11 @@ func _on_auto_skip() -> void:
 	GameManager.resume_from_decision()
 
 func _default_low_choice() -> String:
-	# 자동 진행 ON 상태에서 default 처리할 선택지 코드 반환
-	# HIGH/CRITICAL은 자동 진행이라도 default로 처리하되 score가 작은 옵션 선택
 	for d in DecisionQueue.get_all_pending():
 		if d.id == _current_decision_id:
 			match d.type:
 				"VISITOR": return "VISITOR_REJECT"
 				"FOOD_SHORTAGE":
-					# 식량 위기면 매입, 부족이면 ration
 					if GameWorld.food < 15:
 						return "FOOD_BUY"
 					return "FOOD_RATION"
@@ -223,8 +287,6 @@ func _default_low_choice() -> String:
 func _apply_result(code: String) -> void:
 	match code:
 		"VISITOR_WELCOME":
-			# 결정 큐 push 시점에 정해지지 않으므로 payload에서 읽어야…
-			# 단순화: 30골드 + 명성 1
 			GameWorld.modify_resource("gold", 30)
 			GameWorld.modify_resource("prosperity", 1)
 			GameWorld.log_event("방문객 환영: +30골드, +1 명성")
@@ -253,39 +315,42 @@ func _apply_result(code: String) -> void:
 			push_warning("[Main] 알 수 없는 결과 코드: %s" % code)
 
 func _on_tick(_game_time: int) -> void:
-	if not _verify_mode:
+	if _in_game_mode:
 		_refresh_time_label()
 
 func _on_day(_d: int) -> void:
-	if not _verify_mode:
+	if _in_game_mode:
 		_refresh_all()
 
 func _on_event_logged(msg: String) -> void:
 	if last_event_label:
-		last_event_label.text = "🪵 최근 사건: %s" % msg
+		last_event_label.text = "🪵 최근: %s" % msg
 
 func _on_toggle_auto_pressed() -> void:
 	TimeManager.toggle_auto_progress()
 
 func _on_advance_pressed() -> void:
-	TimeManager.advance_minutes(1440)   # +1일
+	TimeManager.advance_minutes(1440)
 	_refresh_all()
 
 func _on_save_pressed() -> void:
 	SaveManager.save_game("manual")
+	# 타이틀 화면이 활성화돼 있으면 '이어하기' 활성화 필요
+	if title_screen and title_screen.has_method("refresh"):
+		title_screen.refresh()
 
 func _on_load_pressed() -> void:
 	if SaveManager.load_game("autosave") or SaveManager.load_game("manual"):
 		_refresh_all()
 
 # ============================================================
-# LB_VERIFY 검증 (헤드리스 60초 안에 모든 검증 통과 → quit)
+# LB_VERIFY 검증 (13단계)
 # ============================================================
 func _run_verify() -> void:
 	# 헤드리스에서도 노드는 부착되지만 화면 안 보임
 	call_deferred("_find_nodes")
 	await get_tree().process_frame
-	print("\n=== Last Banner v2 LB_VERIFY 시작 ===")
+	print("\n=== Last Banner v2.2 LB_VERIFY 시작 ===")
 
 	# 1) 새 게임
 	GameManager.start_new_game("verify")
@@ -295,26 +360,25 @@ func _run_verify() -> void:
 	assert(GameWorld.population == 50)
 	print("[1] 새 게임 초기 상태 OK: %s" % GameWorld.summary())
 
-	# 2) 1일 시뮬 — 60초 = 1일이므로 _process 기반 시뮬은 동기 advance_minutes(1440)으로 검증
+	# 2) 1일 시뮬
 	print("[2] 1일 (1440분) 진행")
 	for i in range(144):
 		TimeManager.advance_minutes(10)
-	# 일간 변동이 1회만 (advance_minutes가 day_changed emit)
 	var s := GameWorld.summary()
 	print("[3] 1일 후: %s" % s)
 	assert(GameWorld.gold != 200, "금이 변동되어야 함")
 	assert(GameWorld.food != 100, "식량이 변동되어야 함")
 
-	# 2.5) 속도 검증 — _process에 1초 delta 주입 → 60분 advance 기대 (헤드리스 안전)
+	# 2.5) 속도 검증
 	print("[2.5] 속도 검증 — 1초 real = 60분 game (1.0 delta 주입)")
 	var min_before: int = TimeManager.minutes_elapsed
-	TimeManager._process(1.0)   # 시뮬: 1초 경과
+	TimeManager._process(1.0)
 	var min_after: int = TimeManager.minutes_elapsed
 	var advance_60: int = min_after - min_before
 	print("  1초 시뮬 후 진행 분: %d (기대 60)" % advance_60)
 	assert(advance_60 >= 55 and advance_60 <= 65, "속도 정확도: %d분 (60±5)" % advance_60)
 
-	# 3) 6일 추가 — 결정 큐 자동 push 확인
+	# 3) 6일 추가
 	print("[4] 추가 6일 진행 (사건 생성 대기)")
 	var initial_decisions: int = DecisionQueue.get_all_pending().size()
 	for day_i in range(6):
@@ -325,21 +389,12 @@ func _run_verify() -> void:
 	print("[5] 결정 큐: %d → %d" % [initial_decisions, final_decisions])
 	if final_decisions > initial_decisions:
 		print("[PASS] 자동 진행 중 사건 생성 확인 ✓")
-		for d in DecisionQueue.get_all_pending():
-			var pname: String = DecisionQueue.Priority.keys()[d.priority]
-			print("  - [%s] %s — %s" % [pname, d.type, d.payload.get("title", "")])
-	else:
-		print("[WARN] 결정 큐 증가 없음 — 확률 게이트 영향. 강제 push 테스트")
-		# 강제 push
-		EventEngine._maybe_visitor(Time.get_ticks_msec())
-		await get_tree().process_frame
-		print("[5b] 강제 push 후: %d건" % DecisionQueue.get_all_pending().size())
 
-	# 4) 자원 변동 총합
+	# 6) 7일 후 자원
 	print("[6] 7일 후 자원: gold=%d food=%d prosper=%d" % [GameWorld.gold, GameWorld.food, GameWorld.prosperity])
 	assert(GameWorld.gold != 200)
 
-	# 5) 저장/로드 round-trip
+	# 7) save/load
 	print("[7] save/load round-trip")
 	var gold_before: int = GameWorld.gold
 	var food_before: int = GameWorld.food
@@ -354,18 +409,17 @@ func _run_verify() -> void:
 	assert(GameWorld.event_log.size() == log_before, "event_log 복원 실패")
 	print("  ✓ Round-trip OK (gold=%d food=%d event_log=%d)" % [GameWorld.gold, GameWorld.food, GameWorld.event_log.size()])
 
-	# 6) 결과 적용 (VISITOR_WELCOME)
+	# 8) 결과 적용
 	print("[8] 결과 적용 (VISITOR_WELCOME)")
 	var gold_pre: int = GameWorld.gold
 	_apply_result("VISITOR_WELCOME")
 	assert(GameWorld.gold == gold_pre + 30)
 	print("  ✓ VISITOR_WELCOME → +30골드 OK")
 
-	# 8.5) 외교 시나리오 강제 push → MEDIUM 모달 표시 검증
+	# 8.5) 외교 push + 분포
 	print("[8.5] 외교 시나리오 MEDIUM 모달")
 	DecisionQueue.resolve(_current_decision_id, {"id": "test", "label": "test"}) if _current_decision_id > 0 else null
 	_current_decision_id = -1
-	# 강제 push
 	EventEngine._maybe_diplomacy(Time.get_ticks_msec())
 	await get_tree().process_frame
 	var pending_after: Array = DecisionQueue.get_all_pending()
@@ -375,20 +429,18 @@ func _run_verify() -> void:
 			diplomacy_count += 1
 	print("  ✓ DIPLOMACY push: %d건" % diplomacy_count)
 	assert(diplomacy_count >= 1, "DIPLOMACY 시나리오 push 안 됨")
-
-	# 8.6) 결정 큐에 MEDIUM/HIGH/LOW가 섞여 있음 확인
 	var priorities := {}
 	for d in pending_after:
 		var pname: String = DecisionQueue.Priority.keys()[d.priority]
 		priorities[pname] = priorities.get(pname, 0) + 1
 	print("  ✓ 결정 큐 우선순위 분포: %s" % str(priorities))
 
-	# 9) 화면 그리기 검증 — ManorDashboard 인스턴스 + 자식 sprite/avatars
+	# 9) 화면 그리기 검증 (ManorDashboard sprite/avatar)
 	print("[9] ManorDashboard 화면 검증")
 	var dashboard: Control = get_node_or_null("ManorDashboard") as Control
 	if dashboard:
 		var scene_root_node: Node = dashboard.get_node_or_null("CenterRoot/LeftColumn/ManorScene/SceneHost/SceneRoot")
-		assert(scene_root_node != null, "scene_root 없음 — SceneHost/SceneRoot 경로")
+		assert(scene_root_node != null, "scene_root 없음")
 		var sprite_count: int = 0
 		var tex_rect_count: int = 0
 		for child in scene_root_node.get_children():
@@ -410,73 +462,89 @@ func _run_verify() -> void:
 	else:
 		print("[WARN] ManorDashboard 인스턴스 없음 — 시각 검증 생략")
 
-	# 10) 모달 자동 OFF 무한 대기 검증 — 자동 진행 OFF 시 모달이 안 닫힘
+	# 10) 모달 OFF 무한 대기
 	print("[10] 모달 자동 OFF 무한 대기 검증")
-	# 기존 큐 클리어 + 모든 결정 큐 제거
 	while not DecisionQueue.get_all_pending().is_empty():
 		DecisionQueue.resolve(DecisionQueue.get_all_pending()[0].id, {"id": "force", "label": "force"})
 	_current_decision_id = -1
 	_last_queue_size = 0
 	if decision_modal: decision_modal.visible = false
 	if modal_dim_bg: modal_dim_bg.visible = false
-	# 큐에 새 결정 1건 강제 push (직접 push — daily cap 무관)
 	var new_id: int = DecisionQueue.push("TEST_OFF", {
 		"title": "테스트 (자동 OFF)",
 		"description": "자동 진행 OFF 상태에서 모달 유지 검증",
-		"choices": [
-			{ "id": "yes", "label": "예", "result": "TEST" },
-		],
+		"choices": [{ "id": "yes", "label": "예", "result": "TEST" }],
 	}, DecisionQueue.Priority.MEDIUM)
 	print("  강제 push: id=%d" % new_id)
 	await get_tree().process_frame
-	# 자동 진행 OFF로 전환
 	TimeManager.auto_progress_enabled = false
-	# 모달 트리거
 	_check_decision_queue()
 	await get_tree().process_frame
 	var modal_visible_off: bool = decision_modal.visible if decision_modal else false
 	print("  ✓ 모달 표시 (auto_progress=OFF): visible=%s" % str(modal_visible_off))
-	assert(modal_visible_off, "자동 OFF에서 모달이 떠있어야 함 (큐 size=%d, current_id=%d)" % [
-		DecisionQueue.get_all_pending().size(), _current_decision_id
-	])
-	# _on_auto_skip을 직접 호출 → OFF면 즉시 return하여 모달 유지
+	assert(modal_visible_off, "자동 OFF에서 모달이 떠있어야 함")
 	_current_decision_id = DecisionQueue.get_all_pending()[0].id if not DecisionQueue.get_all_pending().is_empty() else -1
 	_on_auto_skip()
 	var modal_still_visible: bool = decision_modal.visible if decision_modal else false
 	assert(modal_still_visible, "자동 OFF에서 _on_auto_skip 호출되어도 모달 유지")
 	print("  ✓ OFF 상태에서 _on_auto_skip 호출 → 모달 유지됨")
-	_current_decision_id = -1  # 명시적 리셋
+	_current_decision_id = -1
 
-	# 11) 모달 자동 ON 검증 — 자동 진행 ON 시 모달 자동 닫힘 (3초)
+	# 11) 모달 ON 자동 닫힘
 	print("[11] 모달 자동 ON 검증")
-	# 모달 강제 닫기 + 모든 상태 리셋
 	_current_decision_id = -1
 	_last_queue_size = 0
 	if decision_modal: decision_modal.visible = false
 	if modal_dim_bg: modal_dim_bg.visible = false
-	# 큐 전부 제거
 	while not DecisionQueue.get_all_pending().is_empty():
 		DecisionQueue.resolve(DecisionQueue.get_all_pending()[0].id, {"id": "force", "label": "force"})
-	# EventEngine 일일 카운터 강제 리셋 (daily cap 무력화)
 	EventEngine._decisions_today = 0
-	# 새 LOW 1건 push
 	EventEngine._maybe_visitor(Time.get_ticks_msec() + 20000)
 	await get_tree().process_frame
-	# 자동 진행 ON으로 전환
 	TimeManager.auto_progress_enabled = true
-	# 모달 트리거
 	_check_decision_queue()
 	await get_tree().process_frame
 	var modal_visible_on: bool = decision_modal.visible if decision_modal else false
 	assert(modal_visible_on, "자동 ON에서 모달이 떠있어야 함")
 	print("  ✓ 모달 표시 (auto_progress=ON): visible=%s" % str(modal_visible_on))
-	# 동기 시간 진행으로 4일 후 시뮬 (LOW 3초 × 1440 = 약 144 step, 헤드리스 안전)
-	# 직접 _on_auto_skip을 호출하는 방식으로 빠르게 검증
 	_on_auto_skip()
 	await get_tree().process_frame
 	var modal_after_auto_close: bool = decision_modal.visible if decision_modal else false
 	print("  ✓ _on_auto_skip 호출 후 모달 visible=%s (auto ON → 자동 닫힘)" % str(modal_after_auto_close))
 	assert(not modal_after_auto_close, "자동 ON에서 _on_auto_skip 호출 후 모달은 닫혀야 함")
+
+	# 12) 타이틀 화면 라운드트립
+	print("[12] 타이틀 화면 라운드트립")
+	# 저장 파일 확인 → '이어하기' 활성
+	var saves_before: Array = SaveManager.list_saves()
+	print("  저장 파일: %s" % str(saves_before))
+	if saves_before.is_empty():
+		# 강제 저장
+		SaveManager.save_game("verify_title")
+		saves_before = SaveManager.list_saves()
+	var ts: Control = get_node_or_null("TitleLayer/TitleScreen") as Control
+	if ts and ts.has_method("refresh"):
+		ts.refresh()
+		await get_tree().process_frame
+		var continue_btn: Button = ts.get_node_or_null("CenterBox/ContinueButton") as Button
+		if continue_btn:
+			print("  ✓ TitleScreen '이어하기' 버튼 활성: disabled=%s" % str(continue_btn.disabled))
+			assert(not continue_btn.disabled, "저장 있는데 '이어하기' 버튼이 비활성")
+	# 진입/퇴장 라운드트립
+	_enter_title_mode()
+	await get_tree().process_frame
+	assert(not _in_game_mode)
+	print("  ✓ 타이틀 진입: _in_game_mode=false")
+	# 새 게임으로 진입
+	_on_title_start_new()
+	await get_tree().process_frame
+	assert(_in_game_mode)
+	print("  ✓ 게임 진입: _in_game_mode=true")
+	# 다시 타이틀로
+	_on_title_menu_pressed()
+	await get_tree().process_frame
+	assert(not _in_game_mode)
+	print("  ✓ 다시 타이틀: _in_game_mode=false")
 
 	print("\n=== 검증 완료 — quit ===")
 	get_tree().quit()
