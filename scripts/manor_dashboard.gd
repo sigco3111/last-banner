@@ -163,27 +163,26 @@ func _add_unit_sprite(unit: Dictionary) -> void:
 	scene_characters.append(character)
 	btn.mouse_entered.connect(_on_character_hover.bind(character))
 	btn.mouse_exited.connect(_on_character_unhover.bind(character))
-	btn.pressed.connect(_on_character_pressed.bind(character))
+	# 클릭 핸들러는 의도적으로 연결하지 않음 (호버만으로 인터랙션)
 
 func _on_character_hover(character: Dictionary) -> void:
-	# 살짝 확대
+	# 호버한 캐릭터 정보를 상태창에 표시
 	character["is_hovered"] = true
 	var orig: Vector2 = character.get("original_size", Vector2.ZERO)
 	var boosted: Vector2 = orig * (1.0 + HOVER_SCALE_BOOST)
 	character["button"].size = boosted
 	character["button"].position = (character.get("button").position - (boosted - orig) / 2.0)
+	# 상태창 갱신
+	_show_character_detail(character)
 
 func _on_character_unhover(character: Dictionary) -> void:
 	character["is_hovered"] = false
 	var orig: Vector2 = character.get("original_size", Vector2.ZERO)
-	var boosted: Vector2 = character["button"].size if character.get("is_hovered") else orig
 	character["button"].size = orig
-	# position 복원은 복잡하니 단순화: 이전 위치 저장 필요 → 일단 size 복구만
-	character["button"].size = orig
-
-func _on_character_pressed(character: Dictionary) -> void:
-	print("[Dashboard] 캐릭터 클릭: %s (%s)" % [character.get("name", "?"), character.get("class", "?")])
-	_show_character_detail(character)
+	# 위치를 원래 위치로 복원 (단순화: 매번 정확한 보정 없으니 position 자체를 보정 안 함)
+	# 호버 해제 시 상태창 자동 숨김
+	if detail_vbox:
+		detail_vbox.visible = false
 
 func _show_character_detail(character: Dictionary) -> void:
 	if detail_vbox == null:

@@ -476,30 +476,37 @@ func _run_verify() -> void:
 	else:
 		print("[WARN] ManorDashboard 인스턴스 없음 — 시각 검증 생략")
 
-	# 9.5) 캐릭터 클릭 인터랙션 검증 — DetailPanel 표시
-	print("[9.5] 캐릭터 클릭 인터랙션 검증")
+	# 9.5) 호버 인터랙션 검증 — DetailPanel 마우스 호버 시 표시
+	print("[9.5] 호버 인터랙션 검증")
 	var detail_panel: Node = get_node_or_null("ManorDashboard/CenterRoot/LeftColumn/ManorScene/SceneHost/DetailPanel")
 	var detail_vbox: Node = get_node_or_null("ManorDashboard/CenterRoot/LeftColumn/ManorScene/SceneHost/DetailPanel/VBox") as VBoxContainer
 	if detail_panel and detail_vbox:
 		assert(not detail_vbox.visible, "DetailPanel 기본 숨김이어야 함")
 		print("  ✓ DetailPanel 초기: visible=false")
-		# 시뮬: manor_dashboard.gd의 _show_character_detail 직접 호출
 		var md: Node = get_node_or_null("ManorDashboard")
 		if md and md.has_method("_show_character_detail") and not md.scene_characters.is_empty():
-			md._show_character_detail(md.scene_characters[0])
+			# 호버 시뮬레이션 — _on_character_hover 직접 호출
+			md._on_character_hover(md.scene_characters[0])
 			await get_tree().process_frame
-			assert(detail_vbox.visible, "DetailPanel 표시되어야 함")
+			assert(detail_vbox.visible, "호버 시 DetailPanel 표시되어야 함")
 			var label_count: int = detail_vbox.get_child_count()
-			print("  ✓ 클릭 후 DetailPanel: visible=true, 라벨 %d개" % label_count)
-			assert(label_count >= 4, "최소 4개 라벨 (이름/급여/충성도/상태)")
-			# 닫기 테스트 (다른 캐릭터 클릭 시 갱신)
-			md._show_character_detail(md.scene_characters[1])
+			print("  ✓ 호버 시 DetailPanel: visible=true, 라벨 %d개" % label_count)
+			assert(label_count >= 4, "최소 4개 라벨")
+			# 호버 해제 시뮬레이션 — DetailPanel 자동 숨김 확인
+			md._on_character_unhover(md.scene_characters[0])
+			await get_tree().process_frame
+			assert(not detail_vbox.visible, "호버 해제 시 DetailPanel 숨겨져야 함")
+			print("  ✓ 호버 해제 → DetailPanel 자동 숨김 (visible=false)")
+			# 다른 캐릭터 호버 → 라벨 갱신
+			md._on_character_hover(md.scene_characters[1])
 			await get_tree().process_frame
 			var label_count_2: int = detail_vbox.get_child_count()
-			print("  ✓ 다른 캐릭터 클릭 → 라벨 %d개로 갱신" % label_count_2)
-			assert(label_count_2 == label_count, "라벨 개수는 동일해야 함")
+			print("  ✓ 다른 캐릭터 호버 → 라벨 %d개" % label_count_2)
+			assert(label_count_2 == label_count, "라벨 개수 동일")
+			# 최종 reset
+			md._on_character_unhover(md.scene_characters[1])
 		else:
-			print("[WARN] manor_dashboard의 _show_character_detail 또는 scene_characters 없음")
+			print("[WARN] _on_character_hover 또는 scene_characters 없음")
 	else:
 		print("[WARN] DetailPanel/VBox 없음")
 
