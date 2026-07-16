@@ -682,7 +682,7 @@ func _run_verify() -> void:
 	print("  history 크기: %d" % GameWorld.history.size())
 	assert(GameWorld.history.size() >= 1, "history ≥1일 필요")
 	assert(GameWorld.history.size() <= 7, "history ≤7일 ring buffer")
-	var chart_canvas: Control = get_node_or_null("ManorDashboard/CenterRoot/LeftColumn/ManorTitle/TitleHBox/ChartCard/ChartCanvas") as Control
+	var chart_canvas: Control = get_node_or_null("ManorDashboard/CenterRoot/LeftColumn/ChartRow/ChartCard/ChartCanvas") as Control
 	if chart_canvas:
 		print("  ✓ ChartCanvas 노드 존재: %s" % str(chart_canvas.size))
 		# chart redraw 호출 → _draw_chart 시그널 발화

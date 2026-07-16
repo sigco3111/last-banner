@@ -29,37 +29,34 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 12
 
 [node name="ManorTitle" type="PanelContainer" parent="CenterRoot/LeftColumn"]
-custom_minimum_size = Vector2(0, 110)
+custom_minimum_size = Vector2(0, 48)
 
-[node name="TitleHBox" type="HBoxContainer" parent="CenterRoot/LeftColumn/ManorTitle"]
+[node name="TitleLabel" type="Label" parent="CenterRoot/LeftColumn/ManorTitle"]
+text = "🏰 영지: 토르바르의 옥새관"
+offset_left = 16.0
+offset_top = 8.0
+-theme_override_font_sizes/font_size = 22
++theme_override_font_sizes/font_size = 22
+
+[node name="ChartRow" type="HBoxContainer" parent="CenterRoot/LeftColumn"]
+custom_minimum_size = Vector2(0, 92)
 theme_override_constants/separation = 12
 
-[node name="TitleLabel" type="Label" parent="CenterRoot/LeftColumn/ManorTitle/TitleHBox"]
-text = "🏰 영지: 토르바르의 옥새관"
+[node name="ChartTitleLabel" type="Label" parent="CenterRoot/LeftColumn/ChartRow"]
+text = "📈 자원 추이 (7일, 금 0, 식량 0)"
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 22
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 14
 
-[node name="ChartCard" type="PanelContainer" parent="CenterRoot/LeftColumn/ManorTitle/TitleHBox"]
-custom_minimum_size = Vector2(280, 100)
+[node name="ChartCard" type="PanelContainer" parent="CenterRoot/LeftColumn/ChartRow"]
+custom_minimum_size = Vector2(280, 92)
 mouse_filter = 0
 
-[node name="ChartTitle" type="Label" parent="CenterRoot/LeftColumn/ManorTitle/TitleHBox/ChartCard"]
-anchor_left = 0.0
-anchor_right = 1.0
-offset_left = 8.0
-offset_top = 4.0
-offset_right = -8.0
-offset_bottom = 22.0
-text = "📈 자원 추이 (7일, 금 0, 식량 0)"
-theme_override_font_sizes/font_size = 12
-
-[node name="ChartCanvas" type="Control" parent="CenterRoot/LeftColumn/ManorTitle/TitleHBox/ChartCard"]
-anchor_left = 0.0
-anchor_top = 0.0
+[node name="ChartCanvas" type="Control" parent="CenterRoot/LeftColumn/ChartRow/ChartCard"]
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 6.0
-offset_top = 24.0
+offset_top = 6.0
 offset_right = -6.0
 offset_bottom = -6.0
 mouse_filter = 2
