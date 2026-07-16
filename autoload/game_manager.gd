@@ -19,6 +19,7 @@ func start_new_game(slot: String = "default") -> void:
 	GameWorld.prosperity = 10
 	GameWorld.fortification_level = 1
 	GameWorld.lord_name = "토르바르 오크슬레이어"
+	GameWorld.reset_history()        # 새 게임은 히스토리 리셋
 	DecisionQueue._queue.clear()
 	print("[GameManager] 새 게임 시작 (slot=%s)" % slot)
 

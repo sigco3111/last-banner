@@ -21,6 +21,11 @@ var day_food_change: int = 0
 # 이벤트 로그 (저장 필수)
 var event_log: Array = []   # [{day: int, message: String}, ...]
 
+# 일별 자원 히스토리 (라인 차트용)
+const HISTORY_MAX_DAYS := 7
+var history: Array = []   # [{day, gold, food}, ...] 오래된→최신, 최대 7일
+var _last_history_day: int = -1
+
 var lord_name: String = "토르바르 오크슬레이어"
 
 func _ready() -> void:
@@ -58,6 +63,25 @@ func log_event(message: String) -> void:
 	if event_log.size() > 50:
 		event_log.pop_front()
 	event_logged.emit(message)
+
+## 일별 스냅샷 — 라인 차트용 history ring buffer (최대 7일)
+func record_day_snapshot(day: int) -> void:
+	var snap := {
+		"day": day,
+		"gold": gold,
+		"food": food,
+	}
+	if _last_history_day == day and not history.is_empty():
+		history[-1] = snap   # 같은 날 중복 방지 — 갱신
+	else:
+		history.append(snap)
+		_last_history_day = day
+		while history.size() > HISTORY_MAX_DAYS:
+			history.pop_front()
+
+func reset_history() -> void:
+	history.clear()
+	_last_history_day = -1
 
 ## 결과 코드 처리 — main.gd의 _apply_result와 동일 효과
 ## 전투 화면 등 GameWorld 외부에서 호출 가능
@@ -102,6 +126,8 @@ func save_state() -> Dictionary:
 		"day_gold_change": day_gold_change,
 		"day_food_change": day_food_change,
 		"event_log": event_log.duplicate(),
+		"history": history.duplicate(),
+		"_last_history_day": _last_history_day,
 	}
 
 func load_state(data: Dictionary) -> void:
@@ -116,3 +142,7 @@ func load_state(data: Dictionary) -> void:
 	event_log.clear()
 	for e in data.get("event_log", []):
 		event_log.append(e)
+	history.clear()
+	for h in data.get("history", []):
+		history.append(h)
+	_last_history_day = data.get("_last_history_day", -1)

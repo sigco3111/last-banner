@@ -677,6 +677,21 @@ func _run_verify() -> void:
 	else:
 		print("[WARN] BattleScene 인스턴스 없음")
 
+	# 12.5.5) 차트 검증 — history ring buffer + chart canvas 그리기
+	print("[12.5.5] 차트 검증")
+	print("  history 크기: %d" % GameWorld.history.size())
+	assert(GameWorld.history.size() >= 1, "history ≥1일 필요")
+	assert(GameWorld.history.size() <= 7, "history ≤7일 ring buffer")
+	var chart_canvas: Control = get_node_or_null("ManorDashboard/CenterRoot/LeftColumn/ManorScene/SceneHost/ChartCard/ChartCanvas") as Control
+	if chart_canvas:
+		print("  ✓ ChartCanvas 노드 존재: %s" % str(chart_canvas.size))
+		# chart redraw 호출 → _draw_chart 시그널 발화
+		chart_canvas.queue_redraw()
+		await get_tree().process_frame
+		print("  ✓ 차트 queue_redraw 호출 성공")
+	else:
+		print("[WARN] ChartCanvas 노드 없음")
+
 	# 13) 타이틀 라운드트립
 	print("[13] 타이틀 화면 라운드트립")
 	var saves_before: Array = SaveManager.list_saves()

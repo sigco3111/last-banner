@@ -45,6 +45,30 @@ mouse_filter = 2
 
 [node name="SceneRoot" type="Node2D" parent="CenterRoot/LeftColumn/ManorScene/SceneHost"]
 
+[node name="ChartCard" type="PanelContainer" parent="CenterRoot/LeftColumn/ManorScene/SceneHost"]
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_left = 16.0
+offset_top = 50.0
+offset_right = 200.0
+offset_bottom = 150.0
+mouse_filter = 0
+
+[node name="ChartTitle" type="Label" parent="CenterRoot/LeftColumn/ManorScene/SceneHost/ChartCard"]
+text = "📈 자원 추이 (7일)"
+offset_left = 8.0
+offset_top = 4.0
+offset_right = -8.0
+theme_override_font_sizes/font_size = 12
+
+[node name="ChartCanvas" type="Control" parent="CenterRoot/LeftColumn/ManorScene/SceneHost/ChartCard"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 20.0
+mouse_filter = 2
+
 [node name="DetailPanel" type="PanelContainer" parent="CenterRoot/LeftColumn/ManorScene/SceneHost"]
 visible = false
 anchor_left = 0.0

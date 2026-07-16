@@ -11,6 +11,9 @@ var roster_vbox: VBoxContainer = null
 var manor_title: Label = null
 # 시간대 그라디언트용 ColorRect 참조
 var bg_color_rect: ColorRect = null
+# 라인 차트
+var chart_canvas: Control = null
+var chart_title: Label = null
 # 클릭 상세정보 패널
 var detail_panel: PanelContainer = null
 var detail_vbox: VBoxContainer = null
@@ -68,6 +71,11 @@ func _find_nodes() -> void:
 		detail_vbox = detail_panel.get_node_or_null("VBox") as VBoxContainer
 		if detail_vbox:
 			detail_vbox.visible = false
+	chart_canvas = get_node_or_null("CenterRoot/LeftColumn/ManorScene/SceneHost/ChartCard/ChartCanvas") as Control
+	chart_title = get_node_or_null("CenterRoot/LeftColumn/ManorScene/SceneHost/ChartCard/ChartTitle") as Label
+	if chart_canvas:
+		chart_canvas.draw.connect(_draw_chart)
+		print("[Dashboard] 차트 캔버스 연결 완료")
 	var scene_state: String = "OK" if scene_root else "NULL"
 	var detail_state: String = "OK" if detail_panel else "NULL"
 	print("[Dashboard] 동적 노드 검색 완료 (scene_root=%s, detail_panel=%s)" % [scene_state, detail_state])
@@ -350,3 +358,76 @@ func _on_event_logged(_msg: String) -> void:
 
 func _on_tick(_game_time: int) -> void:
 	_update_time_of_day_colors()   # 매 tick마다 색 보간 (60초 = 1일, 색 변화 자연스러움)
+	_refresh_chart()               # 자원 변동 시 차트 갱신
+
+func _refresh_chart() -> void:
+	if chart_canvas:
+		chart_canvas.queue_redraw()
+
+## 라인 차트 그리기 — Control._draw() 오버라이드 (실제로는 draw 시그널로)
+func _draw_chart() -> void:
+	if not chart_canvas:
+		return
+	var history: Array = GameWorld.history
+	var size: Vector2 = chart_canvas.size
+	var padding := Vector2(28, 14)
+	var plot_w: float = max(size.x - padding.x * 2, 0.0)
+	var plot_h: float = max(size.y - padding.y * 2, 0.0)
+
+	# 배경
+	chart_canvas.draw_rect(Rect2(Vector2.ZERO, size), Color(0.05, 0.04, 0.03, 0.4))
+	if history.size() < 1:
+		# 범례 (데이터 부족)
+		var default_font: Font = ThemeDB.fallback_font
+		chart_canvas.draw_string(default_font,
+			Vector2(8, size.y / 2),
+			"(데이터 누적 중)", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.6, 0.6, 0.6, 0.7))
+		return
+
+	# max 정규화
+	var max_gold: int = 1
+	var max_food: int = 1
+	for h in history:
+		if int(h.get("gold", 0)) > max_gold:
+			max_gold = int(h.get("gold", 0))
+		if int(h.get("food", 0)) > max_food:
+			max_food = int(h.get("food", 0))
+
+	# 그리드 (수평선 3개)
+	for i in range(4):
+		var y: float = padding.y + plot_h * float(i) / 3.0
+		chart_canvas.draw_line(
+			Vector2(padding.x, y),
+			Vector2(padding.x + plot_w, y),
+			Color(0.3, 0.3, 0.3, 0.5), 1.0
+		)
+
+	# 골드 라인 (금색)
+	_draw_series(history, "gold", Color(0.95, 0.78, 0.2),
+		padding, plot_w, plot_h, max_gold)
+	# 식량 라인 (연두)
+	_draw_series(history, "food", Color(0.6, 0.85, 0.4),
+		padding, plot_w, plot_h, max_food)
+
+	# 텍스트 라벨
+	if chart_title:
+		chart_title.text = "📈 자원 추이 (7일, 금 %d, 식량 %d)" % [history[-1].gold, history[-1].food]
+
+func _draw_series(history: Array, key: String, color: Color,
+		padding: Vector2, plot_w: float, plot_h: float, max_val: int) -> void:
+	var n: int = history.size()
+	if n < 1:
+		return
+	var denom: float = float(max(max_val, 1))
+	# 단일 점도 그릴 수 있게 (점 표시)
+	var points: Array = []
+	for i in range(n):
+		var x: float = padding.x + plot_w * (float(i) / max(float(n - 1), 1.0))
+		var v: int = int(history[i].get(key, 0))
+		var y: float = padding.y + plot_h * (1.0 - float(v) / denom)
+		points.append(Vector2(x, y))
+	# 라인 + 점
+	for i in range(points.size() - 1):
+		chart_canvas.draw_line(points[i], points[i + 1], color, 2.0)
+	for p in points:
+		chart_canvas.draw_circle(p, 2.0, color)

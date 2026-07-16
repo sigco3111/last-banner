@@ -41,7 +41,10 @@ func _on_tick(game_time: int) -> void:
 func _on_day(_d: int) -> void:
 	_decisions_today = 0
 	GameWorld.apply_daily_economy()
-
+	GameWorld.record_day_snapshot(_d)   # 라인 차트용 history 기록
+	print("[EventEngine] Day %d — 자원 변동: gold %+d, food %+d" % [
+		_d, GameWorld.day_gold_change, GameWorld.day_food_change
+	])
 ## 방문객 — 자원/명성 modest 증진 (수용/거절)
 func _maybe_visitor(_game_time: int) -> void:
 	if _decisions_today >= DECISION_MAX_PER_DAY:
