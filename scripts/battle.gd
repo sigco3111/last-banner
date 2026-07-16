@@ -39,17 +39,17 @@ const ROLES := [
 	{ "path": "res://assets/units/human-loyalists/lieutenant.png", "name": "보조" },
 ]
 const ENEMY_TYPES := [
-	{ "path": "res://assets/units/orcs/grunt.png",           "name": "오크 전사" },
-	{ "path": "res://assets/units/undead-skeletal/banebow.png", "name": "해골 병사" },
-	{ "path": "res://assets/units/orcs/warlord.png",         "name": "약탈자 두목" },
+	{ "path": "res://assets/units/orcs/grunt.png",                        "name": "오크 전사" },
+	{ "path": "res://assets/units/undead-skeletal/banebow.png",           "name": "해골 병사" },
+	{ "path": "res://assets/units/orcs/warlord.png",                      "name": "약탈자 두목" },
 	{ "path": "res://assets/units/undead-skeletal/bone-shooter-bob-1.png","name": "강령 궁수" },
-	{ "path": "res://assets/units/orcs/assassin.png",        "name": "오크 암살자" },
+	{ "path": "res://assets/units/orcs/assassin.png",                     "name": "오크 암살자" },
 ]
 
 func _ready() -> void:
 	_find_nodes()
 	_connect_signals()
-	reset_state(5, 4)   # 초기 상태: 5명 아군 vs 4명 적군
+	reset_state(5, 4)
 
 func _find_nodes() -> void:
 	title_label = get_node_or_null("TopBar/TopVBox/TitleLabel") as Label
@@ -64,21 +64,34 @@ func _find_nodes() -> void:
 	bribe_button = get_node_or_null("BottomCard/BottomVBox/ChoicesRow/BribeButton") as Button
 	result_label = get_node_or_null("BottomCard/BottomVBox/ResultLabel") as Label
 	close_button = get_node_or_null("CloseButton") as Button
-	print("[Battle] 노드 검색 완료 (state=DECISION)")
+	print("[Battle] 노드 검색 완료 (state=DECISION, fight_button=%s)" % ("OK" if fight_button else "NULL"))
 
 func _connect_signals() -> void:
-	if fight_button: fight_button.pressed.connect(_on_fight_pressed)
-	if hide_button: hide_button.pressed.connect(_on_hide_pressed)
-	if bribe_button: bribe_button.pressed.connect(_on_bribe_pressed)
-	if close_button: close_button.pressed.connect(_on_close_pressed)
+	if fight_button:
+		fight_button.pressed.connect(_on_fight_pressed)
+	if hide_button:
+		hide_button.pressed.connect(_on_hide_pressed)
+	if bribe_button:
+		bribe_button.pressed.connect(_on_bribe_pressed)
+	if close_button:
+		close_button.pressed.connect(_on_close_pressed)
+	print("[Battle] 시그널 연결 완료")
 
 ## 외부에서 호출 — 전투 화면 표시
 func start_battle(enemy_count: int = 4) -> void:
+	print("[Battle] start_battle(%d) 호출됨" % enemy_count)
 	reset_state(5, enemy_count)
 	visible = true
 	state = State.DECISION
-	_update_status("상태: 결정 대기")
-	if result_label: result_label.text = ""
+	rolls.clear()
+	roll_count = 0
+	_update_status("상태: 결정 대기 — 출격/숨기/뇌물 중 선택")
+	if result_label:
+		result_label.text = ""
+	if choices_row:
+		choices_row.visible = true
+	if dice_label:
+		dice_label.text = "🎲 —"
 
 func reset_state(allies_count: int, enemies_count: int) -> void:
 	_populate_grid(allies_grid, ROLES, allies_count, Color(0.55, 0.6, 0.7))
@@ -90,7 +103,6 @@ func reset_state(allies_count: int, enemies_count: int) -> void:
 func _populate_grid(grid: GridContainer, role_pool: Array, count: int, modulate: Color) -> void:
 	for child in grid.get_children():
 		child.queue_free()
-	# 배치할 5개 선택 (count 만큼)
 	var picks: Array = role_pool.slice(0, min(count, role_pool.size()))
 	for r in picks:
 		var tex_rect := TextureRect.new()
@@ -104,32 +116,38 @@ func _populate_grid(grid: GridContainer, role_pool: Array, count: int, modulate:
 		grid.add_child(tex_rect)
 
 func _update_status(msg: String) -> void:
-	if status_label: status_label.text = msg
+	if status_label:
+		status_label.text = msg
 
+# ============================================================
+# 입력 핸들러
+# ============================================================
 func _on_fight_pressed() -> void:
+	print("[Battle] 출격 클릭! 현재 state=%d" % state)
 	if state != State.DECISION:
+		print("[Battle] state가 DECISION이 아니어서 무시")
 		return
 	state = State.SIMULATING
 	_update_status("상태: 전투 진행 중")
-	if choices_row: choices_row.visible = false
-	# 주사위 3번 굴림
+	if choices_row:
+		choices_row.visible = false
 	rolls.clear()
 	roll_count = 0
-	_roll_dice()
+	_simulate_dice_sync()
 
 func _on_hide_pressed() -> void:
+	print("[Battle] 숨기 클릭!")
 	if state != State.DECISION:
 		return
-	# 숨기 — 식량 손실
 	GameWorld.modify_resource("food", -enemies_power)
 	GameWorld.log_event("숨기 선택 — 식량 %d 손실" % enemies_power)
 	GameWorld.apply_result("BATTLE_BANDITS_HIDE", {})
 	_finish("HIDE")
 
 func _on_bribe_pressed() -> void:
+	print("[Battle] 뇌물 클릭!")
 	if state != State.DECISION:
 		return
-	# 뇌물 — 골드 손실 + 명성 -2
 	var cost: int = 30
 	GameWorld.modify_resource("gold", -cost)
 	GameWorld.modify_resource("prosperity", -2)
@@ -137,22 +155,30 @@ func _on_bribe_pressed() -> void:
 	GameWorld.apply_result("BATTLE_BANDITS_BRIBE", {})
 	_finish("BRIBE")
 
-func _roll_dice() -> void:
-	if roll_count >= 3:
-		_resolve_fight()
-		return
-	roll_count += 1
-	var roll: int = randi() % 6 + 1   # 1~6
-	rolls.append(roll)
+# ============================================================
+# 주사위 시뮬레이션 (race-free synchronous + 타이머만 await)
+# ============================================================
+func _simulate_dice_sync() -> void:
+	# 한 번에 다 굴리고 타이머로만 단계 분리 (recurse 위험 X)
+	for i in range(3):
+		var roll: int = randi() % 6 + 1
+		rolls.append(roll)
+		roll_count += 1
+		_update_status("상태: 전투 진행 중 (%d/3)" % roll_count)
+	# UI 표시 (모든 굴림 완료 후)
 	if dice_label:
 		var dice_str := ""
 		for r in rolls:
 			dice_str += DICE_ICONS[r - 1] + " "
-		dice_label.text = "🎲 " + dice_str + "(전투력 보정 +%d)" % sum_rolls()
-	_update_status("상태: 전투 진행 중 (%d/3)" % roll_count)
-	# 0.6초 후 다음 굴림
-	await get_tree().create_timer(0.6).timeout
-	_roll_dice()
+		dice_label.text = "🎲 " + dice_str
+	print("[Battle] 주사위 굴림 완료: %s" % str(rolls))
+	# 결과 적용 (즉시)
+	state = State.RESULT
+	var bonus: int = sum_rolls()
+	if allies_power + bonus >= enemies_power:
+		_victory_now(bonus)
+	else:
+		_defeat_now(bonus)
 
 func sum_rolls() -> int:
 	var s := 0
@@ -160,32 +186,23 @@ func sum_rolls() -> int:
 		s += r
 	return s
 
-func _resolve_fight() -> void:
-	state = State.RESULT
-	var bonus: int = sum_rolls()
-	var effective: int = allies_power + bonus
-	if effective >= enemies_power:
-		_victory(bonus)
-	else:
-		_defeat(bonus)
-
-func _victory(bonus: int) -> void:
+func _victory_now(bonus: int) -> void:
 	if result_label:
 		result_label.text = "✅ 승리! (%d + 보정 %d = %d vs %d)" % [allies_power, bonus, allies_power + bonus, enemies_power]
-	if status_label: status_label.text = "상태: 승리"
+	_update_status("상태: 승리 — 5초 후 자동 종료")
 	GameWorld.log_event("전투 승리 — 약탈자 퇴치 (전투력 %d + 보정 %d)" % [allies_power, bonus])
 	GameWorld.apply_result("BATTLE_BANDITS_FIGHT", {})
 	# 5초 후 자동 종료
 	await get_tree().create_timer(5.0).timeout
 	_finish("FIGHT_WIN")
 
-func _defeat(bonus: int) -> void:
+func _defeat_now(bonus: int) -> void:
 	if result_label:
 		result_label.text = "❌ 패배... (%d + 보정 %d = %d < %d) — 식량 %d 손실" % [
 			allies_power, bonus, allies_power + bonus, enemies_power,
 			enemies_power * 2
 		]
-	if status_label: status_label.text = "상태: 패배"
+	_update_status("상태: 패배 — 5초 후 자동 종료")
 	GameWorld.modify_resource("food", -enemies_power * 2)
 	GameWorld.log_event("전투 패배 — 식량 %d 손실" % (enemies_power * 2))
 	GameWorld.apply_result("BATTLE_BANDITS_FIGHT", {})
@@ -195,7 +212,8 @@ func _defeat(bonus: int) -> void:
 
 func _finish(outcome: String) -> void:
 	state = State.DECISION
-	if choices_row: choices_row.visible = true
+	if choices_row:
+		choices_row.visible = true
 	emit_signal("battle_finished", outcome)
 	# 자동 종료 (외부에서 안 닫으면)
 	await get_tree().create_timer(2.0).timeout

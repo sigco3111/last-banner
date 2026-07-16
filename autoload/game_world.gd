@@ -59,6 +59,33 @@ func log_event(message: String) -> void:
 		event_log.pop_front()
 	event_logged.emit(message)
 
+## 결과 코드 처리 — main.gd의 _apply_result와 동일 효과
+## 전투 화면 등 GameWorld 외부에서 호출 가능
+## v3.0 BattleScene에서 사용
+const RESULT_EFFECTS := {
+	"VISITOR_WELCOME":       { "gold": +30, "prosperity": +1, "log": "방문객 환영" },
+	"VISITOR_REJECT":        { "prosperity": -2, "log": "방문객 거절" },
+	"FOOD_BUY":              { "gold": -50, "food": +30, "log": "식량 매입" },
+	"FOOD_RATION":           { "prosperity": -5, "log": "건제 시행" },
+	"DIPLOMACY_ALLIANCE_ACCEPT": { "gold": +50, "prosperity": +8, "log": "동맹 수락" },
+	"DIPLOMACY_TRADE":       { "food": +30, "prosperity": +3, "log": "교역" },
+	"DIPLOMACY_REFUSE":      { "prosperity": -5, "log": "외교 거절" },
+	"BATTLE_BANDITS_HIDE":   { "log": "숨기 — 식량 손실" },
+	"BATTLE_BANDITS_BRIBE":  { "gold": -30, "prosperity": -2, "log": "뇌물" },
+}
+
+func apply_result(result_code: String, _payload: Dictionary = {}) -> void:
+	# GameWorld 모듈 자체에서 자원 변동 적용 (main.gd의 _apply_result와 동등)
+	var effects: Dictionary = RESULT_EFFECTS.get(result_code, {})
+	for resource_name in effects:
+		if resource_name == "log":
+			continue
+		if effects[resource_name] is int:
+			modify_resource(resource_name, int(effects[resource_name]))
+	if effects.has("log"):
+		log_event(effects["log"])
+	print("[GameWorld] apply_result(%s) 적용" % result_code)
+
 func summary() -> String:
 	return "lord=%s gold=%d food=%d pop=%d prosper=%d fort=%d" % [
 		lord_name, gold, food, population, prosperity, fortification_level

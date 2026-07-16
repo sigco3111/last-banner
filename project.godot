@@ -29,6 +29,10 @@ EventEngine="*res://autoload/event_engine.gd"
 AssetRegistry="*res://autoload/asset_registry.gd"
 KoreanFont="*res://autoload/korean_font.gd"
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gut/plugin.cfg", "res://addons/godot_ai/plugin.cfg")
+
 [display]
 
 window/size/viewport_width=1280

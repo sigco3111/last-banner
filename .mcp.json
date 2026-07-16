@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "mcpollinations": {
+      "command": "npx",
+      "args": ["-y", "@pinkpixel/mcpollinations"],
+      "disabled": false
+    }
+  }
+}
