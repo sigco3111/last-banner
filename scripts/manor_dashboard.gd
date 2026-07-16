@@ -63,10 +63,11 @@ func _find_nodes() -> void:
 	manor_title = get_node_or_null("CenterRoot/LeftColumn/ManorTitle/TitleLabel") as Label
 	detail_panel = get_node_or_null("CenterRoot/LeftColumn/ManorScene/SceneHost/DetailPanel") as PanelContainer
 	if detail_panel:
+		# 기본 숨김 — 호버할 때만 표시
+		detail_panel.visible = false
 		detail_vbox = detail_panel.get_node_or_null("VBox") as VBoxContainer
 		if detail_vbox:
-			detail_visible_default = detail_vbox.visible
-			detail_vbox.visible = false   # 기본 숨김
+			detail_vbox.visible = false
 	var scene_state: String = "OK" if scene_root else "NULL"
 	var detail_state: String = "OK" if detail_panel else "NULL"
 	print("[Dashboard] 동적 노드 검색 완료 (scene_root=%s, detail_panel=%s)" % [scene_state, detail_state])
