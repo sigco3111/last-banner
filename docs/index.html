@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Last Banner — 변방 영지 운영 로그라이크</title>
+	<meta name="description" content="Wesnoth 2D 픽토그램 + CK3 정치 미학의 변방 영지 운영 로그라이크 전략 게임. Godot 4 + macOS 네이티브.">
+	<meta name="theme-color" content="#1a1410">
+	<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%231a1410'/%3E%3Ctext x='32' y='48' text-anchor='middle' font-size='52' fill='%23f5dc8a'%3E🏰%3C/text%3E%3C/svg%3E">
+	<style>
+		:root {
+			--bg-base: #1a1410;
+			--bg-panel: #2a201a;
+			--bg-panel-light: #3a2e26;
+			--bg-dark: #0e0a08;
+			--text-primary: #f0eadb;
+			--text-secondary: #c7b89c;
+			--text-title: #f5dc8a;
+			--text-dim: #8a7e6c;
+			--gold: #f5d54d;
+			--food: #a6d966;
+			--pop: #80bff2;
+			--prosper: #f2cc80;
+			--priority-low: #a6a6b3;
+			--priority-medium: #80bff2;
+			--priority-high: #ffc24d;
+			--priority-critical: #ff6666;
+			--tier-1: #b3b3b3;
+			--tier-2: #73d9ff;
+			--tier-3: #ffd959;
+			--border-subtle: rgba(102, 82, 56, 0.6);
+			--border-accent: rgba(178, 138, 76, 0.8);
+		}
+		* { box-sizing: border-box; }
+		html, body {
+			margin: 0;
+			padding: 0;
+			background: var(--bg-base);
+			color: var(--text-primary);
+			font-family: 'SF Pro Text', 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'Malgun Gothic', sans-serif;
+			line-height: 1.6;
+		}
+		.container {
+			max-width: 1100px;
+			margin: 0 auto;
+			padding: 32px 24px;
+		}
+		header {
+			text-align: center;
+			padding: 48px 0;
+			border-bottom: 1px solid var(--border-accent);
+			margin-bottom: 48px;
+		}
+		.logo {
+			font-size: 64px;
+			margin-bottom: 8px;
+		}
+		h1 {
+			font-size: 48px;
+			margin: 0 0 8px 0;
+			color: var(--text-title);
+			font-weight: 700;
+			letter-spacing: 2px;
+		}
+		.tagline {
+			font-size: 18px;
+			color: var(--text-secondary);
+			font-style: italic;
+		}
+		.badges {
+			margin-top: 24px;
+		}
+		.badge {
+			display: inline-block;
+			padding: 4px 12px;
+			margin: 4px;
+			border-radius: 4px;
+			font-size: 13px;
+			background: var(--bg-panel);
+			color: var(--text-secondary);
+			border: 1px solid var(--border-subtle);
+		}
+		.badge.version { background: rgba(80, 130, 200, 0.15); color: #a6c5e6; border-color: rgba(80, 130, 200, 0.3); }
+		.badge.godot { background: rgba(71, 140, 191, 0.15); color: #98c0d6; border-color: rgba(71, 140, 191, 0.3); }
+		.badge.mac { background: rgba(0, 0, 0, 0.3); color: #f0eadb; border-color: rgba(255, 255, 255, 0.15); }
+		.badge.license { background: rgba(80, 180, 100, 0.15); color: #a6d9a6; border-color: rgba(80, 180, 100, 0.3); }
+		h2 {
+			font-size: 28px;
+			color: var(--text-title);
+			margin: 48px 0 16px 0;
+			padding-bottom: 8px;
+			border-bottom: 1px solid var(--border-subtle);
+		}
+		h3 {
+			font-size: 20px;
+			color: var(--text-secondary);
+			margin: 24px 0 12px 0;
+		}
+		p {
+			margin: 12px 0;
+			color: var(--text-primary);
+		}
+		.feature-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+			gap: 16px;
+			margin: 24px 0;
+		}
+		.feature-card {
+			background: var(--bg-panel);
+			border: 1px solid var(--border-subtle);
+			border-radius: 6px;
+			padding: 20px;
+			transition: border-color 0.2s, transform 0.2s;
+		}
+		.feature-card:hover {
+			border-color: var(--border-accent);
+			transform: translateY(-2px);
+		}
+		.feature-icon {
+			font-size: 32px;
+			margin-bottom: 8px;
+		}
+		.feature-title {
+			font-size: 16px;
+			color: var(--text-title);
+			margin: 0 0 8px 0;
+			font-weight: 600;
+		}
+		.feature-desc {
+			font-size: 14px;
+			color: var(--text-secondary);
+			margin: 0;
+		}
+		.code-block {
+			background: var(--bg-dark);
+			border: 1px solid var(--border-subtle);
+			border-radius: 4px;
+			padding: 16px;
+			margin: 16px 0;
+			font-family: 'SF Mono', Menlo, Consolas, monospace;
+			font-size: 13px;
+			color: var(--text-primary);
+			overflow-x: auto;
+		}
+		.code-block .comment { color: var(--text-dim); }
+		.code-block .keyword { color: #c792ea; }
+		.code-block .string { color: #c3e88d; }
+		.stats-table {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+			gap: 12px;
+			margin: 16px 0;
+		}
+		.stat-card {
+			background: var(--bg-panel);
+			border-left: 3px solid var(--gold);
+			padding: 12px 16px;
+			border-radius: 4px;
+		}
+		.stat-card.food { border-left-color: var(--food); }
+		.stat-card.pop { border-left-color: var(--pop); }
+		.stat-card.prosper { border-left-color: var(--prosper); }
+		.stat-label {
+			font-size: 12px;
+			color: var(--text-dim);
+			text-transform: uppercase;
+			letter-spacing: 1px;
+		}
+		.stat-value {
+			font-size: 24px;
+			color: var(--text-title);
+			font-weight: 700;
+			margin-top: 4px;
+		}
+		.priority-demo {
+			display: flex;
+			gap: 8px;
+			flex-wrap: wrap;
+			margin: 16px 0;
+		}
+		.priority-badge {
+			padding: 6px 14px;
+			border-radius: 4px;
+			font-size: 13px;
+			font-weight: 600;
+			letter-spacing: 1px;
+			border: 1px solid;
+		}
+		.priority-badge.low {
+			background: rgba(70, 70, 75, 0.4);
+			color: var(--priority-low);
+			border-color: var(--priority-low);
+		}
+		.priority-badge.medium {
+			background: rgba(35, 50, 70, 0.4);
+			color: var(--priority-medium);
+			border-color: var(--priority-medium);
+		}
+		.priority-badge.high {
+			background: rgba(70, 55, 25, 0.4);
+			color: var(--priority-high);
+			border-color: var(--priority-high);
+		}
+		.priority-badge.critical {
+			background: rgba(85, 30, 30, 0.4);
+			color: var(--priority-critical);
+			border-color: var(--priority-critical);
+			animation: pulse 2s infinite;
+		}
+		@keyframes pulse {
+			0%, 100% { opacity: 1; }
+			50% { opacity: 0.7; }
+		}
+		.tier-demo {
+			display: flex;
+			gap: 16px;
+			flex-wrap: wrap;
+			margin: 16px 0;
+		}
+		.tier-card {
+			flex: 1;
+			min-width: 180px;
+			background: var(--bg-panel);
+			border-radius: 6px;
+			padding: 16px;
+			text-align: center;
+		}
+		.tier-1 { border-top: 3px solid var(--tier-1); }
+		.tier-2 { border-top: 3px solid var(--tier-2); }
+		.tier-3 { border-top: 3px solid var(--tier-3); }
+		.tier-name {
+			font-size: 14px;
+			color: var(--text-secondary);
+			margin-bottom: 4px;
+		}
+		.tier-class {
+			font-size: 18px;
+			font-weight: 700;
+			margin-bottom: 4px;
+		}
+		.tier-1 .tier-class { color: var(--tier-1); }
+		.tier-2 .tier-class { color: var(--tier-2); }
+		.tier-3 .tier-class { color: var(--tier-3); }
+		.tier-wage {
+			font-size: 12px;
+			color: var(--gold);
+		}
+		.btn {
+			display: inline-block;
+			padding: 12px 28px;
+			margin: 8px;
+			border-radius: 6px;
+			text-decoration: none;
+			font-weight: 600;
+			font-size: 15px;
+			transition: all 0.2s;
+			border: 1px solid transparent;
+		}
+		.btn-primary {
+			background: rgba(245, 213, 77, 0.15);
+			color: var(--gold);
+			border-color: var(--gold);
+		}
+		.btn-primary:hover {
+			background: rgba(245, 213, 77, 0.25);
+			transform: translateY(-1px);
+		}
+		.btn-secondary {
+			background: var(--bg-panel);
+			color: var(--text-primary);
+			border-color: var(--border-accent);
+		}
+		.btn-secondary:hover {
+			background: var(--bg-panel-light);
+		}
+		footer {
+			text-align: center;
+			padding: 48px 0 24px;
+			color: var(--text-dim);
+			font-size: 13px;
+			border-top: 1px solid var(--border-subtle);
+			margin-top: 64px;
+		}
+		footer a {
+			color: var(--text-secondary);
+		}
+		.cta {
+			text-align: center;
+			padding: 48px 0;
+			background: var(--bg-panel);
+			border-radius: 8px;
+			border: 1px solid var(--border-accent);
+			margin: 32px 0;
+		}
+		.cta-title {
+			font-size: 24px;
+			color: var(--text-title);
+			margin-bottom: 8px;
+		}
+		.cta-desc {
+			color: var(--text-secondary);
+			margin-bottom: 24px;
+		}
+		@media (max-width: 768px) {
+			h1 { font-size: 36px; }
+			.logo { font-size: 48px; }
+			.container { padding: 16px; }
+		}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<header>
+			<div class="logo">🏰</div>
+			<h1>LAST BANNER</h1>
+			<p class="tagline">변방 영지 운영 로그라이크</p>
+			<div class="badges">
+				<span class="badge godot">Godot 4.7.1</span>
+				<span class="badge mac">macOS .app</span>
+				<span class="badge version">v4.0.0</span>
+				<span class="badge">432 Wesnoth 자산</span>
+				<span class="badge license">MIT / CC-BY-4.0</span>
+			</div>
+		</header>
+
+		<section>
+			<h2>📖 컨셉</h2>
+			<p>
+				<strong>Last Banner</strong>는 <strong>Wesnoth 2D 픽토그램 + CK3/EU4 양식 정치 미학</strong>의
+				변방 영지 운영 로그라이크 전략 게임입니다. 세계는 알아서 돌아가고, 플레이어는
+				결정 큐에 쌓인 사건만 처리합니다.
+			</p>
+			<p>
+				시각 톤은 <strong>저판타지 political</strong> — 마법은 subtle, fireball 같은 화려한 효과는 없습니다.
+				대신 <strong>정치 드라마 + 자원 관리 + 시간 압박</strong>이 핵심 긴장감.
+			</p>
+		</section>
+
+		<section>
+			<h2>🎮 핵심 메카닉</h2>
+			<div class="feature-grid">
+				<div class="feature-card">
+					<div class="feature-icon">⏯</div>
+					<h3 class="feature-title">자동 진행 + 위임</h3>
+					<p class="feature-desc">1초 real = 60분 game. 위임하면 3~5초 후 default 결정으로 자동 진행. P 키로 토글.</p>
+				</div>
+				<div class="feature-card">
+					<div class="feature-icon">📜</div>
+					<h3 class="feature-title">결정 큐 (11종 사건)</h3>
+					<p class="feature-desc">방문객·약탈자·식량 위기·외교·농민 호소·겨울 준비·상인·역병·용병·후계자·건물. 우선순위별 모달.</p>
+				</div>
+				<div class="feature-card">
+					<div class="feature-icon">⚔️</div>
+					<h3 class="feature-title">용병 Roster (9-class)</h3>
+					<p class="feature-desc">bowman~paladin 9개 클래스 tier 시스템. 충성도/일급/부상/자동 이탈.</p>
+				</div>
+				<div class="feature-card">
+					<div class="feature-icon">👑</div>
+					<h3 class="feature-title">왕조 / 후계자 (CK3 양식)</h3>
+					<p class="feature-desc">4종 스탯 + loyalty/ambition + 후계자 감사 + 배신 이벤트.</p>
+				</div>
+				<div class="feature-card">
+					<div class="feature-icon">🏗️</div>
+					<h3 class="feature-title">빌딩 시스템 (4종)</h3>
+					<p class="feature-desc">시장/훈련장/창고/성벽 × max Lv 3. 비용 곡선 + 일간 보너스.</p>
+				</div>
+				<div class="feature-card">
+					<div class="feature-icon">📈</div>
+					<h3 class="feature-title">라인 차트</h3>
+					<p class="feature-desc">7일 ring buffer. 골드/식량 시계열 + 그림자 + 글리프 도트 + 범례.</p>
+				</div>
+			</div>
+		</section>
+
+		<section>
+			<h2>💰 자원 시스템</h2>
+			<div class="stats-table">
+				<div class="stat-card">
+					<div class="stat-label">💰 금</div>
+					<div class="stat-value">200</div>
+				</div>
+				<div class="stat-card food">
+					<div class="stat-label">🌾 식량</div>
+					<div class="stat-value">100</div>
+				</div>
+				<div class="stat-card pop">
+					<div class="stat-label">👥 인구</div>
+					<div class="stat-value">50</div>
+				</div>
+				<div class="stat-card prosper">
+					<div class="stat-label">⭐ 명성</div>
+					<div class="stat-value">10</div>
+				</div>
+			</div>
+			<p style="font-size: 13px; color: var(--text-dim);">
+				+ 일급 자동 차감 / 식량 추가 소비 / 세수 비례 / 계절 변동
+			</p>
+		</section>
+
+		<section>
+			<h2>🎯 결정 큐 우선순위</h2>
+			<div class="priority-demo">
+				<span class="priority-badge low">LOW</span>
+				<span class="priority-badge medium">MEDIUM</span>
+				<span class="priority-badge high">HIGH</span>
+				<span class="priority-badge critical">CRITICAL</span>
+			</div>
+			<p>
+				LOW는 <strong>3초</strong> / 그 외는 <strong>5초</strong> 후 default 결정으로 자동 resolve.
+				CRITICAL은 게임을 즉시 일시정지하여 사용자 결정 필수.
+			</p>
+		</section>
+
+		<section>
+			<h2>⚔️ 용병 9-class Tier</h2>
+			<div class="tier-demo">
+				<div class="tier-card tier-1">
+					<div class="tier-name">Tier 1</div>
+					<div class="tier-class">초급</div>
+					<div class="tier-wage">4~5 골드/일</div>
+					<p style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+						bowman · swordsman · pikeman
+					</p>
+				</div>
+				<div class="tier-card tier-2">
+					<div class="tier-name">Tier 2</div>
+					<div class="tier-class">중급</div>
+					<div class="tier-wage">10~15 골드/일</div>
+					<p style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+						sergeant · fencer · crossbow · cavalry
+					</p>
+				</div>
+				<div class="tier-card tier-3">
+					<div class="tier-name">Tier 3</div>
+					<div class="tier-class">고급</div>
+					<div class="tier-wage">30~35 골드/일</div>
+					<p style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+						captain · paladin
+					</p>
+				</div>
+			</div>
+		</section>
+
+		<section>
+			<h2>🏗️ 아키텍처</h2>
+			<p>10개 autoload 싱글턴 + 메인 허브 화면:</p>
+			<div class="code-block">
+<span class="comment"># v4.0.0 신규 autoload (Phase A 4단계)</span>
+<span class="keyword">MercenaryData</span> = <span class="string">"res://autoload/mercenary_data.gd"</span>   <span class="comment"># 9-class tier 카탈로그</span>
+<span class="keyword">UITheme</span>       = <span class="string">"res://autoload/ui_theme.gd"</span>         <span class="comment"># 색상 팔레트 + 스타일 헬퍼</span>
+
+<span class="comment"># 코어 autoload</span>
+<span class="keyword">GameManager</span> · <span class="keyword">TimeManager</span> · <span class="keyword">DecisionQueue</span> · <span class="keyword">SaveManager</span>
+<span class="keyword">GameWorld</span>    · <span class="keyword">EventEngine</span>   · <span class="keyword">AssetRegistry</span> · <span class="keyword">KoreanFont</span>
+			</div>
+
+			<h3>게임 내 객체 통계</h3>
+			<ul style="color: var(--text-secondary); padding-left: 24px;">
+				<li><strong style="color: var(--text-primary);">결정 큐 사건 11종</strong> — VISITOR / BANDIT_RAID / DIPLOMACY / FOOD_SHORTAGE / PEASANT_PETITION / WINTER_PREPARATION / MERCHANT_CARAVAN / PLAGUE / MERCENARY_OFFER / SUCCESSION_AUDIT / HEIR_BETRAYAL / BUILD_CONSTRUCTION</li>
+				<li><strong style="color: var(--text-primary);">결과 핸들러 27+종</strong> — GameWorld.RESULT_EFFECTS 통합 dict</li>
+				<li><strong style="color: var(--text-primary);">LB_VERIFY 17단계</strong> — 헤드리스 자동 검증 (5~15초)</li>
+			</ul>
+		</section>
+
+		<section>
+			<h2>🚀 빠른 시작</h2>
+			<div class="code-block">
+<span class="comment"># 개발 모드</span>
+<span class="keyword">cd</span> ~/work/last-banner
+godot --path .
+
+<span class="comment"># 정식 빌드 (.app)</span>
+godot --headless --export-release macOS
+open <span class="string">"build/macos/Last Banner.app"</span>
+
+<span class="comment"># 헤드리스 검증 (17단계)</span>
+LB_VERIFY=1 godot --headless
+			</div>
+		</section>
+
+		<div class="cta">
+			<h3 class="cta-title">🎮 지금 다운로드</h3>
+			<p class="cta-desc">Last Banner v4.0.0 — macOS .app 170 MB</p>
+			<a href="https://github.com/sigco3111/last-banner/releases/tag/v4.0.0" class="btn btn-primary">⬇️ v4.0.0 다운로드</a>
+			<a href="https://github.com/sigco3111/last-banner" class="btn btn-secondary">📦 GitHub 저장소</a>
+		</div>
+
+		<footer>
+			<p>
+				<strong>Last Banner v4.0.0</strong> · 2026-07-20
+			</p>
+			<p>
+				<a href="https://github.com/sigco3111/last-banner/blob/main/CHANGELOG.md">변경 이력</a> ·
+				<a href="https://github.com/sigco3111/last-banner/blob/main/README.md">README</a> ·
+				<a href="https://github.com/sigco3111/last-banner/blob/main/docs/CREDITS.md">라이선스</a>
+			</p>
+			<p style="margin-top: 16px; opacity: 0.6;">
+				코드 MIT · Wesnoth 자산 CC-BY-4.0 · NanumGothic 폰트 SIL OFL 1.1
+			</p>
+		</footer>
+	</div>
+</body>
+</html>
