@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3 uid="uid://bmainhubv2"]
+[gd_scene load_steps=5 format=3 uid="uid://bmainhubv2"]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/manor_dashboard.tscn" id="2_dash"]
@@ -33,10 +33,10 @@ anchor_right = 1.0
 offset_left = 0.0
 offset_top = 0.0
 offset_right = 0.0
-offset_bottom = 80.0
+offset_bottom = 56.0
 
 [node name="ResourceRow" type="HBoxContainer" parent="UI/TopResourceBar"]
-theme_override_constants/separation = 24
+theme_override_constants/separation = 16
 
 [node name="TimeLabel" type="Label" parent="UI/TopResourceBar/ResourceRow"]
 text = "Day 0  |  00:00  |  자동 진행: ON"
@@ -45,22 +45,22 @@ theme_override_font_sizes/font_size = 16
 
 [node name="GoldLabel" type="Label" parent="UI/TopResourceBar/ResourceRow"]
 text = "💰 금: 200"
-custom_minimum_size = Vector2(140, 0)
+custom_minimum_size = Vector2(120, 0)
 theme_override_font_sizes/font_size = 16
 
 [node name="FoodLabel" type="Label" parent="UI/TopResourceBar/ResourceRow"]
 text = "🌾 식량: 100"
-custom_minimum_size = Vector2(140, 0)
+custom_minimum_size = Vector2(120, 0)
 theme_override_font_sizes/font_size = 16
 
 [node name="PopLabel" type="Label" parent="UI/TopResourceBar/ResourceRow"]
 text = "👥 인구: 50"
-custom_minimum_size = Vector2(110, 0)
+custom_minimum_size = Vector2(100, 0)
 theme_override_font_sizes/font_size = 16
 
 [node name="ProsperLabel" type="Label" parent="UI/TopResourceBar/ResourceRow"]
 text = "⭐ 명성: 10"
-custom_minimum_size = Vector2(110, 0)
+custom_minimum_size = Vector2(100, 0)
 theme_override_font_sizes/font_size = 16
 
 [node name="LastEventLabel" type="Label" parent="UI/TopResourceBar/ResourceRow"]
@@ -73,7 +73,7 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 0.0
-offset_top = -90.0
+offset_top = -76.0
 offset_right = 0.0
 offset_bottom = 0.0
 
@@ -82,23 +82,23 @@ alignment = 1
 theme_override_constants/separation = 12
 
 [node name="ToggleAutoButton" type="Button" parent="UI/BottomButtonRow/HBox"]
-custom_minimum_size = Vector2(140, 56)
-text = "P: 자동 진행"
+custom_minimum_size = Vector2(140, 52)
+text = "⏯ 자동 진행"
 
 [node name="AdvanceButton" type="Button" parent="UI/BottomButtonRow/HBox"]
-custom_minimum_size = Vector2(140, 56)
-text = "+1일 진행"
+custom_minimum_size = Vector2(140, 52)
+text = "▶▶ +1일"
 
 [node name="SaveButton" type="Button" parent="UI/BottomButtonRow/HBox"]
-custom_minimum_size = Vector2(140, 56)
+custom_minimum_size = Vector2(140, 52)
 text = "💾 저장"
 
 [node name="LoadButton" type="Button" parent="UI/BottomButtonRow/HBox"]
-custom_minimum_size = Vector2(140, 56)
+custom_minimum_size = Vector2(140, 52)
 text = "📂 불러오기"
 
 [node name="TitleMenuButton" type="Button" parent="UI/BottomButtonRow/HBox"]
-custom_minimum_size = Vector2(140, 56)
+custom_minimum_size = Vector2(140, 52)
 text = "🏠 타이틀로"
 
 [node name="ModalLayer" type="CanvasLayer" parent="."]
@@ -107,7 +107,7 @@ layer = 100
 [node name="DimBG" type="ColorRect" parent="ModalLayer"]
 anchor_right = 1.0
 anchor_bottom = 1.0
-color = Color(0, 0, 0, 0.7)
+color = Color(0, 0, 0, 0.78)
 visible = false
 mouse_filter = 0
 
@@ -124,19 +124,24 @@ offset_bottom = 180.0
 mouse_filter = 0
 
 [node name="ModalVBox" type="VBoxContainer" parent="ModalLayer/DecisionModal"]
+theme_override_constants/separation = 10
 
 [node name="ModalTitle" type="Label" parent="ModalLayer/DecisionModal/ModalVBox"]
 text = "결정"
-theme_override_font_sizes/font_size = 22
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 24
+
+[node name="ModalPriority" type="Label" parent="ModalLayer/DecisionModal/ModalVBox"]
+text = "우선순위"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 14
 
 [node name="ModalDesc" type="Label" parent="ModalLayer/DecisionModal/ModalVBox"]
 text = "설명"
 custom_minimum_size = Vector2(0, 80)
 autowrap_mode = 3
-theme_override_font_sizes/font_size = 16
-
-[node name="ModalPriority" type="Label" parent="ModalLayer/DecisionModal/ModalVBox"]
-text = "우선순위"
-theme_override_font_sizes/font_size = 14
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 15
 
 [node name="ModalChoices" type="VBoxContainer" parent="ModalLayer/DecisionModal/ModalVBox"]
+theme_override_constants/separation = 8

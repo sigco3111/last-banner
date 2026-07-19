@@ -14,6 +14,7 @@ var status_label: Label = null
 func _ready() -> void:
 	_find_nodes()
 	_connect_signals()
+	_apply_styles()
 	_refresh_continue_button()
 
 func _find_nodes() -> void:
@@ -22,6 +23,26 @@ func _find_nodes() -> void:
 	quit_button = get_node_or_null("CenterBox/QuitButton") as Button
 	status_label = get_node_or_null("CenterBox/StatusLabel") as Label
 	print("[Title] 동적 노드 검색 완료")
+
+func _apply_styles() -> void:
+	# 타이틀 배경
+	var bg: ColorRect = get_node_or_null("BG") as ColorRect
+	if bg:
+		bg.color = UITheme.BG_BASE
+	# 타이틀 로고 / 태그라인 색상
+	var logo: Label = get_node_or_null("CenterBox/Logo") as Label
+	if logo:
+		logo.add_theme_color_override("font_color", UITheme.TEXT_TITLE)
+	var tagline: Label = get_node_or_null("CenterBox/Tagline") as Label
+	if tagline:
+		tagline.add_theme_color_override("font_color", UITheme.TEXT_SECONDARY)
+	# 버튼 색상 (모든 4상태)
+	UITheme.apply_button_styles(start_button, UITheme.BG_BUTTON.lerp(UITheme.COLOR_GOLD, 0.18))
+	UITheme.apply_button_styles(continue_button, UITheme.BG_BUTTON.lerp(UITheme.COLOR_FOOD, 0.12))
+	UITheme.apply_button_styles(quit_button, UITheme.BG_BUTTON.lerp(UITheme.TEXT_DANGER, 0.15))
+	# 상태 라벨
+	if status_label:
+		status_label.add_theme_color_override("font_color", UITheme.TEXT_SECONDARY)
 
 func _connect_signals() -> void:
 	if start_button:

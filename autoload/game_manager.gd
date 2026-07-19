@@ -18,10 +18,18 @@ func start_new_game(slot: String = "default") -> void:
 	GameWorld.population = 50
 	GameWorld.prosperity = 10
 	GameWorld.fortification_level = 1
-	GameWorld.lord_name = "토르바르 오크슬레이어"
 	GameWorld.reset_history()        # 새 게임은 히스토리 리셋
+	GameWorld.reset_roster()         # v3.2 A-1: 새 게임은 roster 리셋
+	GameWorld.reset_court()          # v3.3 A-2: 새 게임은 court 리셋
+	GameWorld.spawn_initial_court()  # v3.3 A-2: 영주 1 + 후보 3 + 신하 1
+	GameWorld.reset_buildings()      # v3.3 A-3: 새 게임은 buildings 리셋
+	# 초기 용병 5명 (bowman 2, swordsman 1, pikeman 1, sergeant 1)
+	var seed_classes := ["bowman", "bowman", "swordsman", "pikeman", "sergeant"]
+	for c in seed_classes:
+		var m: Dictionary = GameWorld.offer_mercenary(c)
+		GameWorld.add_mercenary(m)
 	DecisionQueue._queue.clear()
-	print("[GameManager] 새 게임 시작 (slot=%s)" % slot)
+	print("[GameManager] 새 게임 시작 (slot=%s, 용병=%d명, court=%d명)" % [slot, GameWorld.alive_mercenaries().size(), GameWorld.court.size()])
 
 func pause_for_decision() -> void:
 	if current_state == State.PLAYING:

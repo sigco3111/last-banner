@@ -27,6 +27,8 @@ GameWorld="*res://autoload/game_world.gd"
 EventEngine="*res://autoload/event_engine.gd"
 AssetRegistry="*res://autoload/asset_registry.gd"
 KoreanFont="*res://autoload/korean_font.gd"
+MercenaryData="*res://autoload/mercenary_data.gd"
+UITheme="*res://autoload/ui_theme.gd"
 _mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
 
 [display]

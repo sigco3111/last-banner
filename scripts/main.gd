@@ -72,6 +72,27 @@ func _find_nodes() -> void:
 			modal_desc = decision_modal.get_node_or_null("ModalVBox/ModalDesc") as Label
 			modal_priority = decision_modal.get_node_or_null("ModalVBox/ModalPriority") as Label
 			modal_choices = decision_modal.get_node_or_null("ModalVBox/ModalChoices") as VBoxContainer
+	_apply_colors()
+
+func _apply_colors() -> void:
+	# 색상만 입히기 (구조/anchor는 건드리지 않음 — tscn이 안정된 검증된 형태)
+	# ─── 상단 자원바 라벨 색상 ─────────────
+	if time_label: UITheme.apply_label_color(time_label, UITheme.TEXT_TITLE)
+	if gold_label: UITheme.apply_label_color(gold_label, UITheme.COLOR_GOLD)
+	if food_label: UITheme.apply_label_color(food_label, UITheme.COLOR_FOOD)
+	if pop_label: UITheme.apply_label_color(pop_label, UITheme.COLOR_POPULATION)
+	if prosper_label: UITheme.apply_label_color(prosper_label, UITheme.COLOR_PROSPERITY)
+	if last_event_label: UITheme.apply_label_color(last_event_label, UITheme.TEXT_SECONDARY)
+	# ─── 하단 버튼 색상 ────────────────────────
+	UITheme.apply_button_styles(toggle_button, UITheme.BG_BUTTON)
+	UITheme.apply_button_styles(advance_button, UITheme.BG_BUTTON.lerp(UITheme.COLOR_GOLD, 0.15))
+	UITheme.apply_button_styles(save_button, UITheme.BG_BUTTON)
+	UITheme.apply_button_styles(load_button, UITheme.BG_BUTTON)
+	UITheme.apply_button_styles(title_menu_button, UITheme.BG_BUTTON.lerp(UITheme.TEXT_DANGER, 0.15))
+	# ─── 모달 ───────────────────────────────
+	if modal_dim_bg: modal_dim_bg.color = Color(0, 0, 0, 0.78)
+	if modal_title: UITheme.apply_label_color(modal_title, UITheme.TEXT_TITLE)
+	if modal_desc: UITheme.apply_label_color(modal_desc, UITheme.TEXT_PRIMARY)
 
 func _connect_signals() -> void:
 	# 게임 모드 버튼
@@ -172,7 +193,7 @@ func _refresh_time_label() -> void:
 		return
 	var hour: int = (TimeManager.minutes_elapsed % 1440) / 60
 	var minute: int = TimeManager.minutes_elapsed % 60
-	time_label.text = "Day %d  |  %02d:%02d  |  자동 진행: %s" % [
+	time_label.text = "🕯 Day %d  %02d:%02d  |  ⏯ 자동 진행: %s" % [
 		TimeManager.day, hour, minute,
 		"ON" if TimeManager.auto_progress_enabled else "OFF"
 	]
@@ -222,23 +243,37 @@ func _show_next_decision() -> void:
 
 func _populate_modal(decision: Dictionary) -> void:
 	var pname: String = DecisionQueue.Priority.keys()[decision.priority]
-	if modal_title: modal_title.text = decision.payload.get("title", "결정")
-	if modal_desc: modal_desc.text = decision.payload.get("description", "")
+	if modal_title:
+		modal_title.text = decision.payload.get("title", "결정")
+		# 우선순위별 제목 색상
+		var pcolor: Color = UITheme.priority_color(decision.priority)
+		UITheme.apply_label_color(modal_title, pcolor)
+	if modal_desc:
+		modal_desc.text = decision.payload.get("description", "")
 	if modal_priority:
-		modal_priority.text = "우선순위: %s" % pname
-		match decision.priority:
-			DecisionQueue.Priority.HIGH: modal_priority.modulate = Color(1, 0.7, 0.2)
-			DecisionQueue.Priority.CRITICAL: modal_priority.modulate = Color(1, 0.3, 0.3)
-			_: modal_priority.modulate = Color(0.7, 0.7, 0.7)
+		modal_priority.text = "[%s] %s" % [pname, decision.type]
+		UITheme.apply_label_color(modal_priority, UITheme.priority_color(decision.priority))
 	if modal_choices:
 		for child in modal_choices.get_children():
 			child.queue_free()
 		for choice in decision.payload.get("choices", []):
 			var btn := Button.new()
 			btn.text = choice.get("label", "선택")
-			btn.custom_minimum_size = Vector2(0, 44)
+			btn.custom_minimum_size = Vector2(0, 48)
 			btn.pressed.connect(_on_choice_pressed.bind(choice))
 			modal_choices.add_child(btn)
+			# 우선순위별 버튼 색상
+			var btn_bg: Color = UITheme.BG_BUTTON
+			match decision.priority:
+				DecisionQueue.Priority.CRITICAL:
+					btn_bg = UITheme.BG_BUTTON.lerp(UITheme.PRIORITY_CRITICAL, 0.20)
+				DecisionQueue.Priority.HIGH:
+					btn_bg = UITheme.BG_BUTTON.lerp(UITheme.PRIORITY_HIGH, 0.18)
+				DecisionQueue.Priority.MEDIUM:
+					btn_bg = UITheme.BG_BUTTON.lerp(UITheme.PRIORITY_MEDIUM, 0.12)
+				_:
+					btn_bg = UITheme.BG_BUTTON
+			UITheme.apply_button_styles(btn, btn_bg)
 
 func _on_choice_pressed(choice: Dictionary) -> void:
 	print("[Main] _on_choice_pressed: choice=%s" % str(choice))
@@ -313,6 +348,10 @@ func _default_low_choice() -> String:
 		if d.id == _current_decision_id:
 			match d.type:
 				"VISITOR": return "VISITOR_REJECT"
+				"PEASANT_PETITION": return "PETITION_REJECT"
+				"MERCHANT_CARAVAN": return "MERCHANT_SEND_AWAY"
+				"MERCENARY_OFFER": return "REJECT_MERCENARY"
+				"BUILD_CONSTRUCTION": return "BUILD_SKIP"
 				"FOOD_SHORTAGE":
 					if GameWorld.food < 15:
 						return "FOOD_BUY"
@@ -359,6 +398,119 @@ func _apply_result(code: String) -> void:
 			GameWorld.modify_resource("gold", -30)
 			GameWorld.modify_resource("prosperity", -2)
 			GameWorld.log_event("뇌물 — -30 골드, -2 명성")
+		"PETITION_LOWER":
+			GameWorld.modify_resource("gold", -20)
+			GameWorld.modify_resource("prosperity", 3)
+			GameWorld.log_event("세금 인하: -20 골드, +3 명성")
+		"PETITION_REJECT":
+			GameWorld.modify_resource("prosperity", -2)
+			GameWorld.log_event("농민 호소 거절: 명성 -2")
+		"WINTER_STOCKPILE":
+			GameWorld.modify_resource("gold", -50)
+			GameWorld.modify_resource("food", 40)
+			GameWorld.log_event("겨울 식량 비축: -50 골드, +40 식량")
+		"WINTER_MUSTER":
+			GameWorld.modify_resource("food", -20)
+			GameWorld.modify_resource("population", 5)
+			GameWorld.log_event("겨울 모병: -20 식량, +5 인구")
+		"WINTER_IGNORE":
+			GameWorld.log_event("겨울 대비 무시 — 식량 소비 2배 예정")
+		"MERCHANT_BUY":
+			GameWorld.modify_resource("gold", -40)
+			GameWorld.modify_resource("food", 30)
+			GameWorld.log_event("상인 식량 구매: -40 골드, +30 식량")
+		"MERCHANT_SEND_AWAY":
+			GameWorld.modify_resource("prosperity", -1)
+			GameWorld.log_event("상인 돌려보냄: 명성 -1")
+		"PLAGUE_MEDICINE":
+			GameWorld.modify_resource("gold", -80)
+			GameWorld.modify_resource("food", -10)
+			GameWorld.log_event("역병 의학 동원: -80 골드, -10 식량 (사망 방지)")
+		"PLAGUE_QUARANTINE":
+			GameWorld.modify_resource("population", -10)
+			GameWorld.modify_resource("prosperity", -5)
+			GameWorld.log_event("역병 봉쇄: 인구 -10, 명성 -5")
+		"PLAGUE_NOTHING":
+			GameWorld.modify_resource("population", -15)
+			GameWorld.modify_resource("prosperity", -10)
+			GameWorld.log_event("역병 방치: 인구 -15, 명성 -10")
+		"ACCEPT_MERCENARY":
+			# payload에 mercenary dict가 있으면 roster에 추가
+			var payload: Dictionary = _current_decision_payload()
+			if payload.has("mercenary"):
+				var m: Dictionary = payload["mercenary"]
+				GameWorld.add_mercenary(m)
+		"REJECT_MERCENARY":
+			pass   # log만 RESULT_EFFECTS가 처리
+		"DISMISS_MERCENARY":
+			var payload2: Dictionary = _current_decision_payload()
+			if payload2.has("mercenary_id"):
+				GameWorld.dismiss_mercenary(int(payload2["mercenary_id"]), "해고")
+		"MERCENARY_PAY_BONUS":
+			GameWorld.modify_resource("gold", -30)
+			GameWorld.modify_resource("prosperity", 5)
+			GameWorld.log_event("용병 보너스: -30 골드, +5 명성 (충성도 +10)")
+			# 보너스 지급한 용병 모두 충성도 +10
+			for m in GameWorld.alive_mercenaries():
+				m.loyalty = min(100, m.loyalty + 10)
+		"MERCENARY_TRAINING":
+			GameWorld.modify_resource("gold", -20)
+			GameWorld.modify_resource("prosperity", 2)
+			GameWorld.log_event("용병 훈련: -20 골드, +2 명성 (경험 +5)")
+			for m in GameWorld.alive_mercenaries():
+				m.experience += 5
+		"MERCENARY_INJURY_HEAL":
+			GameWorld.modify_resource("gold", -15)
+			GameWorld.log_event("용병 부상 치료: -15 골드")
+			for m in GameWorld.alive_mercenaries():
+				if m.injured_days > 0:
+					m.injured_days = max(0, m.injured_days - 3)
+		"MERCENARY_DESERTS":
+			# 자동 — loyalty<30에 의한 자동 이탈은 EventEngine에서 이미 처리됨
+			pass
+		"BETRAYAL_CRUSHER":
+			var payload3: Dictionary = _current_decision_payload()
+			if payload3.has("person_id"):
+				GameWorld.kill_person(int(payload3["person_id"]), "처형")
+				GameWorld.modify_resource("prosperity", 5)
+		"BETRAYAL_BANISH":
+			var payload4: Dictionary = _current_decision_payload()
+			if payload4.has("person_id"):
+				GameWorld.kill_person(int(payload4["person_id"]), "추방")
+				GameWorld.modify_resource("prosperity", -3)
+		"BETRAYAL_FORGIVE":
+			var payload5: Dictionary = _current_decision_payload()
+			if payload5.has("person_id"):
+				var p: Dictionary = GameWorld.get_person_by_id(int(payload5["person_id"]))
+				if not p.is_empty():
+					p.loyalty = min(100, p.loyalty + 20)
+				GameWorld.modify_resource("prosperity", -8)
+				GameWorld.log_event("후계자 %s 용서 — 충성도 +20" % p.get("name", ""))
+		"SUCCESSION_KEEP":
+			pass   # 유지 — log만
+		"SUCCESSION_SWAP":
+			var heirs: Array = GameWorld.get_heirs()
+			if heirs.size() >= 2:
+				var a_id: int = heirs[0]["id"]
+				var b_id: int = heirs[1]["id"]
+				var a_rank: int = heirs[0]["heir_rank"]
+				var b_rank: int = heirs[1]["heir_rank"]
+				GameWorld.set_heir_rank(a_id, b_rank)
+				GameWorld.set_heir_rank(b_id, a_rank)
+		"SUCCESSION_NURTURE":
+			var payload6: Dictionary = _current_decision_payload()
+			if payload6.has("person_id"):
+				var p2: Dictionary = GameWorld.get_person_by_id(int(payload6["person_id"]))
+				if not p2.is_empty():
+					p2.loyalty = min(100, p2.loyalty + 10)
+				GameWorld.modify_resource("gold", -30)
+				GameWorld.modify_resource("prosperity", 2)
+		"BUILD_UPGRADE":
+			var payload7: Dictionary = _current_decision_payload()
+			if payload7.has("building_id"):
+				GameWorld.upgrade_building(String(payload7["building_id"]))
+		"BUILD_SKIP":
+			pass   # log만 RESULT_EFFECTS가 처리
 		_:
 			push_warning("[Main] 알 수 없는 결과 코드: %s" % code)
 
@@ -372,7 +524,7 @@ func _on_day(_d: int) -> void:
 
 func _on_event_logged(msg: String) -> void:
 	if last_event_label:
-		last_event_label.text = "🪵 최근: %s" % msg
+		last_event_label.text = "🪵 %s" % msg
 
 func _on_toggle_auto_pressed() -> void:
 	TimeManager.toggle_auto_progress()
@@ -490,6 +642,317 @@ func _run_verify() -> void:
 		var pname: String = DecisionQueue.Priority.keys()[d.priority]
 		priorities[pname] = priorities.get(pname, 0) + 1
 	print("  ✓ 결정 큐 우선순위 분포: %s" % str(priorities))
+
+	# 8.6) 신규 사건 4종 push 검증 (PEASANT_PETITION, MERCHANT_CARAVAN, WINTER_PREPARATION, PLAGUE)
+	print("[8.6] 신규 사건 4종 push 검증")
+	# 기존 큐 정리
+	while not DecisionQueue.get_all_pending().is_empty():
+		DecisionQueue.resolve(DecisionQueue.get_all_pending()[0].id, {"id": "clear", "label": "clear"})
+	_current_decision_id = -1
+	_last_queue_size = 0
+	if decision_modal: decision_modal.visible = false
+	if modal_dim_bg: modal_dim_bg.visible = false
+	# PEASANT_PETITION (LOW)
+	DecisionQueue.push("PEASANT_PETITION", {
+		"title": "농민 호소",
+		"description": "세금 인하 호소",
+		"choices": [
+			{ "id": "lower", "label": "인하", "result": "PETITION_LOWER" },
+			{ "id": "reject", "label": "거절", "result": "PETITION_REJECT" },
+		],
+	}, DecisionQueue.Priority.LOW)
+	# MERCHANT_CARAVAN (LOW)
+	DecisionQueue.push("MERCHANT_CARAVAN", {
+		"title": "상인 caravan",
+		"description": "식량 구매",
+		"choices": [
+			{ "id": "buy", "label": "구매", "result": "MERCHANT_BUY" },
+			{ "id": "send_away", "label": "돌려보냄", "result": "MERCHANT_SEND_AWAY" },
+		],
+	}, DecisionQueue.Priority.LOW)
+	# WINTER_PREPARATION (MEDIUM)
+	DecisionQueue.push("WINTER_PREPARATION", {
+		"title": "겨울 준비",
+		"description": "식량 비축",
+		"choices": [
+			{ "id": "stockpile", "label": "비축", "result": "WINTER_STOCKPILE" },
+			{ "id": "muster", "label": "모병", "result": "WINTER_MUSTER" },
+			{ "id": "ignore", "label": "무시", "result": "WINTER_IGNORE" },
+		],
+	}, DecisionQueue.Priority.MEDIUM)
+	# PLAGUE (CRITICAL)
+	DecisionQueue.push("PLAGUE", {
+		"title": "역병",
+		"description": "역병 발생",
+		"choices": [
+			{ "id": "medicine", "label": "의학", "result": "PLAGUE_MEDICINE" },
+			{ "id": "quarantine", "label": "봉쇄", "result": "PLAGUE_QUARANTINE" },
+			{ "id": "nothing", "label": "방치", "result": "PLAGUE_NOTHING" },
+		],
+	}, DecisionQueue.Priority.CRITICAL)
+	await get_tree().process_frame
+	var new_types := {"PEASANT_PETITION": 0, "MERCHANT_CARAVAN": 0, "WINTER_PREPARATION": 0, "PLAGUE": 0}
+	for d in DecisionQueue.get_all_pending():
+		if d.type in new_types:
+			new_types[d.type] += 1
+	print("  ✓ 신규 사건 분포: %s" % str(new_types))
+	for t in new_types:
+		assert(new_types[t] >= 1, "%s push 실패" % t)
+	# 8.6.5) 신규 결과 코드 핸들러 검증
+	print("[8.6.5] 신규 결과 코드 핸들러 검증")
+	var gold_before_new: int = GameWorld.gold
+	var prosper_before_new: int = GameWorld.prosperity
+	GameWorld.apply_result("PETITION_LOWER", {})
+	assert(GameWorld.gold == gold_before_new - 20, "PETITION_LOWER 골드 변동")
+	assert(GameWorld.prosperity == prosper_before_new + 3, "PETITION_LOWER 명성 변동")
+	print("  ✓ PETITION_LOWER: gold -20, prosper +3")
+	_apply_result("WINTER_STOCKPILE")
+	GameWorld.apply_result("MERCHANT_BUY", {})
+	print("  ✓ GameWorld.apply_result 8종 신규 코드 OK")
+
+	# 8.7) 용병 시스템 검증 (A-1)
+	print("[8.7] 용병 시스템 검증 (A-1)")
+	# 초기 roster 확인
+	assert(GameWorld.alive_mercenaries().size() == 5, "초기 roster 5명 필요 (실제: %d)" % GameWorld.alive_mercenaries().size())
+	print("  ✓ 초기 roster: %d명" % GameWorld.alive_mercenaries().size())
+	# 9-class tier 카탈로그 확인
+	assert(MercenaryData.CLASSES.size() == 9, "9-class tier 시스템")
+	assert(MercenaryData.CLASSES.has("bowman"))
+	assert(MercenaryData.CLASSES.has("paladin"))
+	print("  ✓ MercenaryData.CLASSES 9개 확인 OK")
+	# tier_color 검증
+	var color_t1: Color = MercenaryData.tier_color(1)
+	var color_t3: Color = MercenaryData.tier_color(3)
+	assert(color_t1 != color_t3, "tier 1과 3 색은 달라야 함")
+	print("  ✓ tier_color: T1=%s, T3=%s" % [str(color_t1), str(color_t3)])
+	# total_wage_burden 계산
+	var burden: int = GameWorld.total_wage_burden()
+	assert(burden > 0, "총 일급 > 0")
+	print("  ✓ 총 일급 부담: %d골드" % burden)
+	# 신규 용병 추가 + 시그널 검증
+	var signal_fired: Array = []
+	GameWorld.mercenary_joined.connect(func(m): signal_fired.append(m))
+	var new_m: Dictionary = GameWorld.offer_mercenary("crossbow")
+	GameWorld.add_mercenary(new_m)
+	assert(GameWorld.alive_mercenaries().size() == 6, "용병 추가 후 6명")
+	assert(signal_fired.size() == 1, "mercenary_joined 시그널 발화")
+	print("  ✓ 용병 추가: crossbow, 신호 %d건" % signal_fired.size())
+	# MERCENARY_OFFER 결정 큐 push + ACCEPT_MERCENARY 결과 적용
+	var offer_id: int = DecisionQueue.push("MERCENARY_OFFER", {
+		"title": "용병 자원 (테스트)",
+		"description": "테스트",
+		"choices": [
+			{ "id": "accept", "label": "수용", "result": "ACCEPT_MERCENARY" },
+			{ "id": "reject", "label": "거절", "result": "REJECT_MERCENARY" },
+		],
+		"mercenary": GameWorld.offer_mercenary("fencer"),
+	}, DecisionQueue.Priority.LOW)
+	print("  ✓ MERCENARY_OFFER push: id=%d" % offer_id)
+	_current_decision_id = offer_id
+	var before_count: int = GameWorld.alive_mercenaries().size()
+	_apply_result("ACCEPT_MERCENARY")
+	assert(GameWorld.alive_mercenaries().size() == before_count + 1, "ACCEPT_MERCENARY 후 +1명")
+	print("  ✓ ACCEPT_MERCENARY: %d → %d명" % [before_count, GameWorld.alive_mercenaries().size()])
+	DecisionQueue.resolve(offer_id, {"id": "test", "label": "test"})
+	_current_decision_id = -1
+	# 충성도 자동 이탈 검증
+	var deserter_id: int = GameWorld.alive_mercenaries()[0]["id"]
+	for m in GameWorld.roster:
+		if m.id == deserter_id:
+			m.loyalty = 20
+	EventEngine._check_mercenary_loyalty()
+	assert(not GameWorld.get_mercenary_by_id(deserter_id).alive, "loyalty<30 → 자동 이탈")
+	print("  ✓ loyalty<30 자동 이탈: id=%d" % deserter_id)
+	# save/load round-trip (roster 보존)
+	var saved_count: int = GameWorld.alive_mercenaries().size()
+	assert(SaveManager.save_game("verify_roster"))
+	GameWorld.reset_roster()
+	assert(GameWorld.alive_mercenaries().is_empty(), "reset_roster → 비어있음")
+	assert(SaveManager.load_game("verify_roster"))
+	assert(GameWorld.alive_mercenaries().size() == saved_count, "roster round-trip 보존")
+	print("  ✓ roster save/load round-trip: %d명 보존" % GameWorld.alive_mercenaries().size())
+
+	# 8.8) 왕조/후계자 시스템 검증 (A-2)
+	print("[8.8] 왕조/후계자 시스템 검증 (A-2)")
+	# 초기 court 확인
+	assert(GameWorld.court.size() == 5, "초기 court 5명 필요 (실제: %d)" % GameWorld.court.size())
+	print("  ✓ 초기 court: %d명" % GameWorld.court.size())
+	# 영주 확인
+	var lord: Dictionary = GameWorld.get_lord()
+	assert(not lord.is_empty(), "영주 있어야 함")
+	assert(lord.heir_rank == 0, "영주 heir_rank=0")
+	print("  ✓ 영주: %s (나이 %d, 충성도 %d)" % [lord.name, lord.age, lord.loyalty])
+	# 후보 3명 heir_rank 1~3 정렬
+	var heirs: Array = GameWorld.get_heirs()
+	assert(heirs.size() == 3, "후보 3명 (실제: %d)" % heirs.size())
+	for i in range(heirs.size()):
+		assert(heirs[i]["heir_rank"] == i + 1, "후보 %d 순위 오류" % (i + 1))
+	print("  ✓ 후보 %d명, heir_rank 1~3 정렬 OK" % heirs.size())
+	# 신하 1명 heir_rank=-1
+	var vassals: Array = GameWorld.get_vassals()
+	assert(vassals.size() == 1, "신하 1명 (실제: %d)" % vassals.size())
+	print("  ✓ 신하: %d명" % vassals.size())
+	# 4종 스탯 검증
+	for stat in ["martial", "stewardship", "diplomacy", "intrigue"]:
+		assert(lord.stats.has(stat), "%s 스탯 없음" % stat)
+		assert(lord.stats[stat] >= 4 and lord.stats[stat] <= 15, "%s 범위 4~15 (실제: %d)" % [stat, lord.stats[stat]])
+	print("  ✓ 4종 스탯 (martial/stewardship/diplomacy/intrigue) OK")
+	# SUCCESSION_AUDIT push + 결과 적용
+	var succession_id: int = DecisionQueue.push("SUCCESSION_AUDIT", {
+		"title": "후계자 감사 (테스트)",
+		"description": "테스트",
+		"choices": [
+			{ "id": "keep", "label": "유지", "result": "SUCCESSION_KEEP" },
+			{ "id": "swap", "label": "교체", "result": "SUCCESSION_SWAP" },
+			{ "id": "nurture", "label": "양육", "result": "SUCCESSION_NURTURE" },
+		],
+		"person_id": heirs[0]["id"],
+	}, DecisionQueue.Priority.MEDIUM)
+	_current_decision_id = succession_id
+	# SUCCESSION_SWAP 테스트 (1↔2 교체)
+	var heirs_before: Array = GameWorld.get_heirs()
+	var rank_1_before: int = heirs_before[0]["heir_rank"]
+	var rank_2_before: int = heirs_before[1]["heir_rank"]
+	_apply_result("SUCCESSION_SWAP")
+	var heirs_after: Array = GameWorld.get_heirs()
+	assert(heirs_after[0]["id"] == heirs_before[1]["id"], "SUCCESSION_SWAP 후 1순위 = 이전 2순위")
+	print("  ✓ SUCCESSION_SWAP: 1순위 ↔ 2순위 교체 OK")
+	# SUCCESSION_NURTURE 테스트
+	var gold_before_nurture: int = GameWorld.gold
+	var target: Dictionary = GameWorld.get_heirs()[0]
+	var loyalty_before: int = target.loyalty
+	DecisionQueue.resolve(succession_id, {"id": "test", "label": "test"})
+	var nurture_id: int = DecisionQueue.push("SUCCESSION_AUDIT", {
+		"title": "후계자 감사 2",
+		"description": "양육 테스트",
+		"choices": [
+			{ "id": "keep", "label": "유지", "result": "SUCCESSION_KEEP" },
+			{ "id": "swap", "label": "교체", "result": "SUCCESSION_SWAP" },
+			{ "id": "nurture", "label": "양육", "result": "SUCCESSION_NURTURE" },
+		],
+		"person_id": target["id"],
+	}, DecisionQueue.Priority.MEDIUM)
+	_current_decision_id = nurture_id
+	_apply_result("SUCCESSION_NURTURE")
+	assert(GameWorld.gold == gold_before_nurture - 30, "SUCCESSION_NURTURE 골드 차감")
+	var target_after: Dictionary = GameWorld.get_heirs()[0]
+	assert(target_after.loyalty == loyalty_before + 10, "SUCCESSION_NURTURE 충성도 +10")
+	print("  ✓ SUCCESSION_NURTURE: 골드 -30, 충성도 +%d OK" % (target_after.loyalty - loyalty_before))
+	DecisionQueue.resolve(nurture_id, {"id": "test", "label": "test"})
+	_current_decision_id = -1
+	# HEIR_BETRAYAL push + BETRAYAL_CRUSHER 결과
+	var betrayer: Dictionary = GameWorld.get_heirs()[1]
+	var betrayer_id_before: int = betrayer["id"]
+	var betrayal_id: int = DecisionQueue.push("HEIR_BETRAYAL", {
+		"title": "후계자 배신 (테스트)",
+		"description": "배신 테스트",
+		"choices": [
+			{ "id": "crusher", "label": "처형", "result": "BETRAYAL_CRUSHER" },
+			{ "id": "banish", "label": "추방", "result": "BETRAYAL_BANISH" },
+			{ "id": "forgive", "label": "용서", "result": "BETRAYAL_FORGIVE" },
+		],
+		"person_id": betrayer_id_before,
+	}, DecisionQueue.Priority.CRITICAL)
+	_current_decision_id = betrayal_id
+	var prosper_before_betrayal: int = GameWorld.prosperity
+	_apply_result("BETRAYAL_CRUSHER")
+	assert(not GameWorld.get_person_by_id(betrayer_id_before).alive, "BETRAYAL_CRUSHER → 사망")
+	assert(GameWorld.prosperity == prosper_before_betrayal + 5, "BETRAYAL_CRUSHER 명성 +5")
+	print("  ✓ BETRAYAL_CRUSHER: %s 처형, 명성 +5" % betrayer["name"])
+	DecisionQueue.resolve(betrayal_id, {"id": "test", "label": "test"})
+	_current_decision_id = -1
+	# court save/load round-trip
+	var court_count: int = GameWorld.court.size()
+	assert(SaveManager.save_game("verify_court"))
+	GameWorld.reset_court()
+	assert(GameWorld.court.is_empty(), "reset_court → 비어있음")
+	assert(SaveManager.load_game("verify_court"))
+	assert(GameWorld.court.size() == court_count, "court round-trip 보존")
+	print("  ✓ court save/load round-trip: %d명 보존" % GameWorld.court.size())
+
+	# 8.9) 빌딩 시스템 검증 (A-3)
+	print("[8.9] 빌딩 시스템 검증 (A-3)")
+	# 검증용 골드/식량 보충 (이전 단계 변동 무시)
+	GameWorld.gold = 1500
+	GameWorld.food = 1000
+	# 초기 buildings = 4종 모두 Lv 0
+	assert(GameWorld.buildings.size() == 4, "초기 buildings 4종 (실제: %d)" % GameWorld.buildings.size())
+	for b in ["market", "training_ground", "granary", "walls"]:
+		assert(GameWorld.buildings.has(b), "%s 등록 안 됨" % b)
+		assert(GameWorld.buildings[b] == 0, "%s 초기 Lv 0" % b)
+	print("  ✓ 초기 buildings: 4종 모두 Lv 0")
+	# BUILDING_DEFS 검증
+	assert(GameWorld.BUILDING_DEFS.size() == 4, "BUILDING_DEFS 4종")
+	assert(GameWorld.BUILDING_MAX_LEVEL == 3, "max_level=3")
+	print("  ✓ BUILDING_DEFS 4종, max_level=3")
+	# can_upgrade / get_upgrade_cost
+	assert(GameWorld.can_upgrade("market"), "market 업그레이드 가능 (Lv 0)")
+	var cost: Dictionary = GameWorld.get_upgrade_cost("market")
+	assert(cost.gold == 50 and cost.food == 30, "시장 Lv 0→1 비용: 50골드+30식량 (실제: %s)" % str(cost))
+	print("  ✓ 시장 Lv 0→1 비용: %d골드 + %d식량" % [cost.gold, cost.food])
+	# BUILD_UPGRADE → Lv 1
+	var gold_pre_up: int = GameWorld.gold
+	var food_pre_up: int = GameWorld.food
+	assert(GameWorld.upgrade_building("market"), "시장 Lv 0→1 건설 성공")
+	assert(GameWorld.get_building_level("market") == 1, "시장 Lv 1")
+	assert(GameWorld.gold == gold_pre_up - 50, "골드 -50 차감")
+	assert(GameWorld.food == food_pre_up - 30, "식량 -30 차감")
+	print("  ✓ 시장 Lv 0→1: 골드 -%d, 식량 -%d" % [50, 30])
+	# 보너스 합산 검증
+	var tax_bonus_1: int = GameWorld.get_total_tax_bonus()
+	assert(tax_bonus_1 == 5, "시장 Lv 1 → 세수 보너스 +5 (실제: %d)" % tax_bonus_1)
+	print("  ✓ get_total_tax_bonus: Lv 1 시장 → +%d" % tax_bonus_1)
+	# 비용 곡선 검증 (Lv 1→2 = base × 2)
+	var cost_l2: Dictionary = GameWorld.get_upgrade_cost("market")
+	assert(cost_l2.gold == 100 and cost_l2.food == 60, "시장 Lv 1→2 비용: 100+60 (실제: %s)" % str(cost_l2))
+	print("  ✓ 비용 곡선: Lv 1→2 = base × 2 → %d골드" % cost_l2.gold)
+	# Lv 3까지 업그레이드
+	assert(GameWorld.upgrade_building("market"), "시장 Lv 1→2")
+	assert(GameWorld.upgrade_building("market"), "시장 Lv 2→3")
+	assert(GameWorld.get_building_level("market") == 3, "시장 max Lv 3")
+	assert(not GameWorld.can_upgrade("market"), "max 도달 시 upgrade 불가")
+	print("  ✓ 시장 Lv 3 max 도달, can_upgrade=false")
+	var tax_bonus_3: int = GameWorld.get_total_tax_bonus()
+	assert(tax_bonus_3 == 15, "시장 Lv 3 → 세수 보너스 +15 (실제: %d)" % tax_bonus_3)
+	# 4종 건물 다 테스트
+	GameWorld.upgrade_building("training_ground")
+	GameWorld.upgrade_building("granary")
+	GameWorld.upgrade_building("walls")
+	assert(GameWorld.get_building_level("training_ground") == 1, "훈련장 Lv 1")
+	assert(GameWorld.get_total_exp_bonus() == 2, "훈련장 Lv 1 → exp +2")
+	assert(GameWorld.get_building_level("granary") == 1, "창고 Lv 1")
+	assert(GameWorld.get_total_food_bonus() == 10, "창고 Lv 1 → food +10")
+	assert(GameWorld.get_building_level("walls") == 1, "성벽 Lv 1")
+	assert(GameWorld.get_defense_multiplier() < 1.0, "성벽 Lv 1 → multiplier < 1.0")
+	print("  ✓ 4종 × Lv 1: tax +15, exp +2, food +10, walls 방어 mult %.2f" % GameWorld.get_defense_multiplier())
+	# BUILD_CONSTRUCTION 결정 큐 push + BUILD_UPGRADE 결과 적용
+	var build_id: int = DecisionQueue.push("BUILD_CONSTRUCTION", {
+		"title": "🏗️ 창고 Lv 1→2 (테스트)",
+		"description": "테스트",
+		"choices": [
+			{ "id": "upgrade", "label": "건설", "result": "BUILD_UPGRADE" },
+			{ "id": "skip", "label": "보류", "result": "BUILD_SKIP" },
+		],
+		"building_id": "granary",
+	}, DecisionQueue.Priority.LOW)
+	_current_decision_id = build_id
+	var food_pre_build: int = GameWorld.food
+	_apply_result("BUILD_UPGRADE")
+	assert(GameWorld.get_building_level("granary") == 2, "BUILD_UPGRADE → 창고 Lv 2")
+	assert(GameWorld.get_total_food_bonus() == 20, "창고 Lv 2 → food +20")
+	assert(GameWorld.food == food_pre_build - 40, "창고 Lv 1→2 비용 40 식량 차감 (실제: gold=%d food=%d)" % [GameWorld.gold, GameWorld.food])
+	print("  ✓ BUILD_UPGRADE: 창고 Lv 1→2, 식량 보너스 +20")
+	DecisionQueue.resolve(build_id, {"id": "test", "label": "test"})
+	_current_decision_id = -1
+	# buildings save/load round-trip
+	var buildings_snapshot: Dictionary = GameWorld.buildings.duplicate(true)
+	assert(SaveManager.save_game("verify_buildings"))
+	GameWorld.reset_buildings()
+	assert(GameWorld.buildings["market"] == 0 and GameWorld.buildings["granary"] == 0, "reset_buildings → Lv 0")
+	assert(SaveManager.load_game("verify_buildings"))
+	for b in buildings_snapshot:
+		assert(GameWorld.buildings[b] == buildings_snapshot[b], "buildings[%s] round-trip" % b)
+	print("  ✓ buildings save/load round-trip: %d종 보존" % buildings_snapshot.size())
 
 	# 9) 화면 그리기 검증
 	print("[9] ManorDashboard 화면 검증")

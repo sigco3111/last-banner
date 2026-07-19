@@ -4,7 +4,8 @@
 > **Godot 4.7.1 + macOS 네이티브 전용** · 자동 진행 + 결정 큐 · 432 Wesnoth 자산
 
 [![Godot](https://img.shields.io/badge/Engine-Godot%204.7.1-478CBF?logo=godot-engine&logoColor=white)](https://godotengine.org)
-[![Platform](https://img.shields.io/badge/Platform-macOS-000?logo=apple)](https://www.apple.com/macos)
+[![Platform](https://img.shields.io/badge/Platform-macOS-000?logo=apple&logoColor=white)](https://www.apple.com/macos)
+[![Version](https://img.shields.io/badge/Version-v4.0.0-blue)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/code-MIT-green)](./LICENSE)
 [![Assets](https://img.shields.io/badge/assets-CC--BY--4.0%20%2F%20OFL-blue)](./docs/CREDITS.md)
 
@@ -20,39 +21,33 @@
   - **속도**: 1초 real time = 60분 game time (1시간) → **1일 = 60초**
   - **ON** (위임): LOW 3초 / MEDIUM·HIGH 5초 후 default 결정으로 자동 resolve
   - **OFF** (대기 모드): 모달 뜨면 사용자가 직접 결정할 때까지 무한 대기
-- **이벤트 간격** (fast 속도에 맞춤): 방문객 20h마다 / 식량·외교 40h마다 / 하루 최대 8건
 - **재진입**: `user://save_*.json` 영속화 — Mac 종료 후 다시 열어도 같은 세션
 
 ---
 
-## 🖼 화면 구성 (1280×720)
+## 🆕 v4.0.0 신규 기능
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│ TopResourceBar: Day N | HH:MM | 자동 진행 | 💰 N | 🌾 N | 🪵 사건  │
-├─────────────────────────────────────────────────────────────────────┤
-│ Manor Dashboard                          ┌────────────────────┐    │
-│  ┌────────────────────────────┐         │ ⚔️ 용병 (5명)         │    │
-│  │ 토르바르의 영지 — 황야의 변방 │         │ [🖼] 토르바르 · 영주   │    │
-│  │ 풀밭 + 흙길 + 캐릭터 5명     │         │   💰 0  ★ 100      │    │
-│  │ (knight/swordsman/spearman/ │         │ [🖼] 에드윈 · 기사    │    │
-│  │  bowman/bandit PNG)        │         │ ...                 │    │
-│  └────────────────────────────┘         └────────────────────┘    │
-│  ┌─────────────────┐  ┌──────────────┐                            │
-│  │ 📜 방문객 (다음 결정) │  📊 일간 변동  │                            │
-│  └─────────────────┘  └──────────────┘                            │
-├─────────────────────────────────────────────────────────────────────┤
-│ [P: 자동 진행]  [+1일 진행]  [💾 저장]  [📂 불러오기]                  │
-└─────────────────────────────────────────────────────────────────────┘
+### Phase A — 게임 깊이 확장
+- **A-1. 용병 Roster** (9-class tier) — bowman / swordsman / pikeman / sergeant / fencer / crossbow / cavalry / captain / paladin
+  - 시그널 3종 (`mercenary_joined/left/injured`)
+  - 16시간마다 용병 자원 제안 (tier 가중치 60/30/10)
+  - 충성도 < 30 자동 이탈 / 일급 자동 차감 / 식량 추가 소비
+- **A-2. 왕조 / 후계자 (CK3 양식)** — 영주 1 + 후보 3 + 신하 1
+  - 4종 스탯 (martial/stewardship/diplomacy/intrigue, 4~15)
+  - 3일마다 후계자 감사 (loyalty ±5 / ambition ±3)
+  - loyalty<25 && ambition>65 → CRITICAL 배신 사건
+  - BETRAYAL_CRUSHER/BANISH/FORGIVE + SUCCESSION_KEEP/SWAP/NURTURE
+- **A-3. 빌딩 시스템** — 4종 × max Lv 3
+  - 시장 (tax +5/level) / 훈련장 (exp +2/level) / 창고 (food +10/level) / 성벽 (방어 mult -10%/level)
+  - 12시간마다 업그레이드 제안 (LOW)
+  - 비용 = base × (lvl+1) 곡선
+- **A-4. 사건 4종 추가** — PEASANT_PETITION (LOW) / WINTER_PREPARATION (MEDIUM) / MERCHANT_CARAVAN (LOW) / PLAGUE (CRITICAL)
 
-결정 모달 (별도 CanvasLayer, layer=100):
-  ┌────────────────────────────────────────┐
-  │ [우선순위] 방문객 도착                  │
-  │ "귀족이 영지를 방문했습니다..."          │
-  │ [환영 (+50골드)]  [거절 (명성 -2)]      │
-  └────────────────────────────────────────┘
-  + DimBG (검은 반투명 0.7 alpha)
-```
+### UI v4.0.1
+- **UITheme autoload** — 색상 팔레트 / 우선순위·자원·Tier·충성도 색상 매핑
+- **결정 모달** — 우선순위별 제목 색상 + 선택지 버튼 톤 (LOW=회색 / MEDIUM=파랑 / HIGH=주황 / CRITICAL=빨강)
+- **풍경도 시간대 그라디언트** — Dawn / Day / Dusk / Night 4구간 색 보간
+- **라인 차트** — 7일 ring buffer + 그림자 + 두꺼운 라인 + 글리프 도트 + 범례
 
 ---
 
@@ -71,21 +66,19 @@
 총 **432개 자산** (393 idle PNG + 39 portraits).
 
 자세한 라이선스 표기: [`docs/CREDITS.md`](docs/CREDITS.md)
-게임 디자인 노트: [`docs/GAMEDESIGN.md`](docs/GAMEDESIGN.md)
+변경 이력: [`CHANGELOG.md`](CHANGELOG.md)
 
 ---
 
 ## 🚀 빠른 시작
 
 ### 게임 실행 (개발 모드)
-
 ```bash
 cd ~/work/last-banner
 godot --path .                    # 즉시 실행 (개발 모드)
 ```
 
 ### 정식 빌드 (.app)
-
 ```bash
 cd ~/work/last-banner
 godot --headless --export-release macOS    # → build/macos/Last Banner.app
@@ -95,162 +88,115 @@ open "build/macos/Last Banner.app"          # 더블클릭과 동일
 빌드 산출물: `build/macos/Last Banner.app/` (≈168 MB, 432 PNG 포함)
 
 ### 헤드리스 검증 (LB_VERIFY=1)
-
 ```bash
 cd ~/work/last-banner
-LB_VERIFY=1 godot --headless    # 자동 진행 + 결정 큐 + save/load + 화면 + 타이틀 + 전투 13단계 자동 검증
+LB_VERIFY=1 godot --headless    # 13+4단계 자동 검증 (~5~15초)
 ```
 
-13단계:
-1. 새 게임 초기 상태 OK (gold=200 food=100 pop=50)
+**검증 단계 (17종)**:
+1. 새 게임 초기 상태 (gold=200 food=100 pop=50)
 2. 1일 시뮬 (1440분)
 3. 자원 변동
-4. 6일 추가 → 결정 큐 자동 push (자동 진행 사건 생성)
-5. PASS — 자동 진행 ✓
+4. 6일 추가 → 결정 큐 자동 push
+5. 자동 진행 ✓
 6. 7일 후 자원 누적
 7. save/load round-trip
 8. 결과 적용 (VISITOR_WELCOME +30골드)
 9. ManorDashboard 화면 검증 (sprite 5 + roster avatar 5)
-10. 모달 자동 OFF 검증 — `auto_progress=OFF`에서 모달 유지됨
-11. 모달 자동 ON 검증 — `auto_progress=ON`에서 자동 결정 → 모달 닫힘
-12.5. 전투 화면 검증 — BattleScene 인스턴스 + 그리드 5/4 + BANDIT_RAID push
-12.5.5. 차트 검증 — history 7일 ring buffer + ChartCanvas + queue_redraw
-13. 타이틀 라운드트립 — 저장 존재 시 '이어하기' 활성 + 게임↔타이틀 토글
+10. 모달 자동 OFF 검증
+11. 모달 자동 ON 검증
+12. 전투 화면 검증
+13. 차트 검증 (history 7일 + ChartCanvas + queue_redraw)
+14. 타이틀 라운드트립
+15. A-4 신규 사건 4종 push (PEASANT/MERCHANT/WINTER/PLAGUE)
+16. A-1 용병 시스템 (9-class / 충성도 이탈 / round-trip)
+17. A-2 왕조/후계자 (court 5명 / SWAP / NURTURE / BETRAYAL_CRUSHER)
+18. A-3 빌딩 시스템 (4종 × Lv 1~3 / 비용 곡선 / round-trip)
 
 ---
 
 ## 🖼 화면 흐름
 
-### 1. 타이틀 화면 (시작 시)
-
+### 1. 타이틀 화면
 ```
 🏰 LAST BANNER
 변방 영지 운영 로그라이크
 
-[▶ 새로 시작]       (항상 활성)
-[⏵ 이어하기]        (저장 파일 있을 때만 활성, '⏵ 이어하기 (N개 저장)')
-[✕ 게임 종료]
+[▶ 새로 시작]       (항상 활성, 금톤)
+[⏵ 이어하기]        (저장 파일 있을 때만 활성, 식량톤)
+[✕ 게임 종료]        (위험톤)
 ```
 
-### 2. 게임 모드 (새 게임 / 이어하기 후)
-
+### 2. 게임 모드
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│ TopResourceBar: Day N | HH:MM | 자동 진행 | 💰 N | 🌾 N | 🪵 ...   │
+│ TopResourceBar: 🕯 Day 25  20:24  |  ⏯ ON  💰 N  🌾 N  👥 N  ⭐ N   │ ← 자원별 색상
 ├─────────────────────────────────────────────────────────────────────┤
 │ Manor Dashboard                          ┌────────────────────┐    │
 │  ┌────────────────────────────┐         │ ⚔️ 용병 (5명)         │    │
 │  │ 토르바르의 영지 — 황야의 변방 │         │ [🖼] 토르바르 · 영주   │    │
-│  │ 풀밭 + 흙길 + 캐릭터 5명     │         │   💰 0  ★ 100      │    │
-│  └────────────────────────────┘         └────────────────────┘    │
-│  ┌─────────────────┐  ┌──────────────┐                            │
-│  │ 📜 방문객 (다음 결정) │  📊 일간 변동  │                            │
-│  └─────────────────┘  └──────────────┘                            │
+│  │ 풀밭 + 흙길 + 캐릭터 5명     │         │ [🖼] 에드윈 · 기사    │    │
+│  │ (knight/swordsman/spearman/ │         │ 💰 12골드/일  ★ 80/100│    │
+│  │  bowman/bandit PNG)        │         └────────────────────┘    │
+│  │ 📈 자원 추이 (7일) 차트        │                                    │
+│  └────────────────────────────┘                                    │
 ├─────────────────────────────────────────────────────────────────────┤
-│ [P: 자동 진행]  [+1일]  [💾 저장]  [📂 불러오기]  [🏠 타이틀로]      │
+│ [⏯ 자동 진행]  [▶▶ +1일]  [💾 저장]  [📂 불러오기]  [🏠 타이틀로]      │
 └─────────────────────────────────────────────────────────────────────┘
-
-결정 모달 (별도 ModalLayer, layer=100):
-  + DimBG (검은 반투명 0.7) + 제목/설명/선택지 버튼
-  - 자동 ON: LOW 3초 / 그 외 5초 후 default 결정으로 자동 resolve
-  - 자동 OFF: 사용자 결정까지 무한 대기
-
-호버 인터랙션 (v2.3.2):
-  - 캐릭터에 마우스 hover → 풍경도 하단 상태창 슬라이드인 (이름/직책/💰일급/★충성도/상태)
-  - hover 떠나면 상태창 자동 숨김
-  - 클릭 안 함 (단순화)
-
-라인 차트 (v3.1):
-  - 풍경도 상단 좌측에 📈 자원 추이 (7일) 패널
-  - 골드(금색) / 식량(연두) 라인 + 점 + 그리드
-  - GameWorld.history ring buffer (7일) — _on_day emit에 record_day_snapshot() 자동 호출
-  - save_state/load_state에 history 직렬화 (재진입 시 즉시 표시)
-  - Control._draw() 핸들러로 그리기 — _on_tick마다 queue_redraw()
-  - 라인 차트 갱신은 자원 변동마다 (실시간 추적)
-
-전투 화면 (v3.0):
-  - HIGH 시나리오 = 약탈자 습격 (자동 ON이면 5초 후 출격 default → 전투 자동 진입)
-  - 출격 클릭 시 BattleScene로 라우팅 (BattleLayer CanvasLayer, layer=90)
-  - 3단계 상태머신:
-      DECISION (출격/숨기/뇌물 3버튼)
-        → SIMULATING (주사위 3회 즉시 굴림 → 보정값 합산)
-        → RESULT (승/패/손실 카드 5초 표시) → 자동 종료
-  - 3가지 선택지:
-      ⚔ 출격: 아군 전투력(allies_count×10+명성) + 주사위 보정 vs 적군 전투력(enemy_count×12)
-                승 → 승리 표시 / 패 → 식량 2배 손실
-      🛡 숨기: 식량 enemy_count 손실
-      💰 뇌물: 골드 30 + 명성 -2 손실
-  - 시각:
-      좌: 아군 그리드 (에드윈/린/그림발트/엘가르/보조)
-      중앙: ⚔ VS ⚔
-      우: 적군 그리드 (랜덤 추출 3~5명 — 오크/해골/약탈자두목/강령궁수/오크암살자)
-      하단: 상태 + 🎲 + 선택지 + 결과 라벨
 ```
 
-### 3. 모드 토글 흐름
-
+### 결정 모달 (별도 ModalLayer, layer=100)
 ```
-[타이틀] ──새로 시작──► [게임] ──🏠 타이틀로──► [타이틀 (저장 후)]
-[타이틀] ──이어하기────► [게임 (저장 복원)]
-[타이틀] ──게임 종료────► [게임 종료 (quit)]
+┌────────────────────────────────────────┐
+│ [우선순위] 방문객 도착                  │ ← 우선순위별 색상
+│ "귀족이 영지를 방문했습니다..."          │
+│ [환영 (+50골드)]  [거절 (명성 -2)]      │ ← 우선순위별 톤
+└────────────────────────────────────────┘
 ```
 
 ---
 
-## 🏗 아키텍처
+## 🏗 아키텍처 (v4.0.0)
 
 ```
-┌─────────────────────────────────────────────┐
-│ GameManager (state machine)                 │
-├─────────────────────────────────────────────┤
-│ TimeManager       (자동 진행 시계)           │
-│ DecisionQueue     (LOW/MED/HIGH/CRITICAL)   │
-│ SaveManager       (user://save_*.json)      │
-│ AssetRegistry     (res:// 경로 단순화)       │
-│ GameWorld         (자원 + 이벤트 로그)      │
-│ EventEngine       (4h/8h 주기 사건)          │
-│ KoreanFont        (preload + theme 적용)     │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│  10개 autoload                                  │
+│  GameManager · TimeManager · DecisionQueue       │
+│  SaveManager · GameWorld · EventEngine           │
+│  AssetRegistry · KoreanFont                      │
+│  MercenaryData (NEW v4.0) · UITheme (NEW v4.0)  │
+└─────────────────────────────────────────────────┘
             ↓
    ┌────────┴───────────────┐
-   │  Scenes (UI Canvas)    │
+   │  Scenes                │
    │  main.tscn             │
-   │   ├─ TopResourceBar    │
+   │   ├─ TopResourceBar    │ ← 자원별 색상 라벨
    │   ├─ ManorLayer        │ (영지 풍경도 + Roster)
-   │   ├─ BottomButtonRow   │
-   │   └─ ModalLayer (z=100)| (결정 모달 + DimBG)
+   │   ├─ BottomButtonRow   │ ← 4상태 스타일 버튼
+   │   ├─ ModalLayer (z=100)| (결정 모달 + DimBG)
+   │   ├─ TitleLayer        │ (시작 메뉴)
+   │   └─ BattleLayer (z=90)| (전투 화면)
 ```
-
-8 autoload + 메인 허브 화면. 모든 autoload는 `process_mode = Node.PROCESS_MODE_ALWAYS`로 일시정지 무관 동작.
 
 ### 시그널 연결
-
 ```
 TimeManager.tick_advanced ─┬─► SaveManager._on_tick  (60분마다 자동 저장)
-                           └─► EventEngine._on_tick  (4h/8h/12h 주기 사건)
-TimeManager.day_changed   ────►► EventEngine._on_day  (일간 자원 변동)
-
-DecisionQueue.push(priority=CRITICAL) ──► GameManager.pause_for_decision()
-                                          (자동 진행 일시정지 신호)
+                           ├─► EventEngine._on_tick  (사건 생성)
+                           └─► UITheme 자동 적용
+TimeManager.day_changed   ────► EventEngine._on_day  (일간 자원 변동 + history)
+TimeManager.season_changed ──► EventEngine._on_season (겨울 진입 시 WINTER_PREPARATION)
+GameWorld.mercenary_*     ────► Roster UI 자동 갱신
+GameWorld.person_*        ────► Succession UI 자동 갱신
+DecisionQueue.push(CRITICAL) ► GameManager.pause_for_decision()
 ```
 
-### 결정 큐 자동 진행 동작 (v2 핵심)
-
-```gdscript
-# TimeManager.auto_progress_enabled:
-#   ON:  LOW 3초 / MEDIUM·HIGH·CRITICAL 5초 후 default 결정으로 자동 resolve
-#   OFF: 타이머 미설정 → 사용자가 결정할 때까지 모달 유지
-```
-
-**5가지 사건 타입 (모두 자동 진행 ON 시 자동 처리)**:
-
-| 타입 | 우선순위 | 자동 default | 트리거 |
-|---|---|---|---|
-| `VISITOR` (방문객) | LOW | `VISITOR_REJECT` (명성 -2) | 20시간마다 70% 확률 |
-| `FOOD_SHORTAGE` (식량 위기) | CRITICAL (food<15) / MEDIUM | `FOOD_BUY` / `FOOD_RATION` | 40시간마다 food<50 |
-| `DIPLOMACY` (동맹/교역) | MEDIUM | `DIPLOMACY_REFUSE` (명성 -5) | 40시간마다 30% |
-
-**하루 최대 8건** — 빠른 자동 진행에서도 사용자가 미쳐 결정할 일 없게.
+### 게임 내 객체 통계 (v4.0.0)
+- **자원 5종**: gold / food / population / prosperity / fortification_level
+- **용병**: 초기 5명 (bowman×2 / swordsman / pikeman / sergeant) + tier 1~3 합쳐 9-class
+- **인물 (왕조)**: 초기 5명 (영주 1 + 후보 3 + 신하 1) — 4종 스탯 + loyalty/ambition
+- **건물 4종**: 시장 / 훈련장 / 창고 / 성벽 (각 max Lv 3)
+- **결정 큐 사건 11종**: VISITOR / BANDIT_RAID / DIPLOMACY / FOOD_SHORTAGE / PEASANT_PETITION / WINTER_PREPARATION / MERCHANT_CARAVAN / PLAGUE / MERCENARY_OFFER / SUCCESSION_AUDIT / HEIR_BETRAYAL / BUILD_CONSTRUCTION
+- **결과 핸들러 27+종**: GameWorld.RESULT_EFFECTS 통합 dict
 
 ---
 
@@ -262,14 +208,13 @@ DecisionQueue.push(priority=CRITICAL) ──► GameManager.pause_for_decision()
 | **D** | (예정) 영지 대시보드 |
 | **R** | (예정) 용병 명단 |
 
-UI 버튼: P 토글 / +1일 진행 / 저장 / 불러오기
+UI 버튼: P 토글 / +1일 진행 / 저장 / 불러오기 / 타이틀로
 
 ---
 
 ## 🛠 개발 워크플로
 
 ### 자산 갱신 (5 factions base idle PNG)
-
 ```bash
 bash tools/setup-assets.sh    # idempotent — 풀 → 심볼릭 링크
 ```
@@ -277,15 +222,12 @@ bash tools/setup-assets.sh    # idempotent — 풀 → 심볼릭 링크
 새 faction 추가 시 `setup-assets.sh`에 `link_unit_faction "faction"` 한 줄 추가.
 
 ### LB_VERIFY
-
-`scripts/main.gd`의 `_run_verify()`가 11단계 자동 검증. 변경 시 반드시 통과 확인:
-
+`scripts/main.gd`의 `_run_verify()`가 17단계 자동 검증. 변경 시 반드시 통과 확인:
 ```bash
 LB_VERIFY=1 godot --headless    # 5~15초
 ```
 
 ### 알려진 함정
-
 | 함정 | 해결 |
 |---|---|
 | `_ready` 함수와 `_ready` 멤버 충돌 → parse 에러 | `_manifest_ready` 같이 함수명 회피 |
@@ -295,6 +237,7 @@ LB_VERIFY=1 godot --headless    # 5~15초
 | ManorDashboard가 모달을 가림 | 모달을 별도 `ModalLayer` (layer=100) CanvasLayer로 분리 |
 | `await get_tree().create_timer().timeout` 헤드리스 hang | LB_VERIFY는 동기 처리 |
 | `@onready $SceneInstance` 인스턴스화 순서 | main.gd처럼 `var + call_deferred` 동적 검색 |
+| PanelContainer 추가 시 anchor 미명시 → layout 깨짐 | tscn은 검증된 형태로 유지, 색상만 동적 적용 |
 
 상세 패턴:
 - `godot-game-bootstrap` 스킬 (Godot 부트스트랩)
@@ -302,17 +245,17 @@ LB_VERIFY=1 godot --headless    # 5~15초
 
 ---
 
-## 🔄 v1 → v2 → v3 변경 이력
+## 🔄 v1 → v2 → v3 → v4 변경 이력 (요약)
 
-| v1 (폐기) | v2 | v3 |
-|---|---|---|
-| Godot 4 + Vercel Web export | Godot 4 + macOS .app 전용 | v3.0: + 전투 화면 / v3.1: + 자원 추이 라인 차트 |
-| KayKit 3D GLB (5 heroes + 4 skeletons + ~50 props) | Wesnoth 2D PNG (5 factions, 432 자산) | 동일 |
-| lazy fetch (jsDelivr CDN) | res:// 직접 | 동일 |
-| 검은 화면 (WebGL2 + COEP 헤더 함정) | 1280×720 매너 대시보드 즉시 표시 | + 타이틀 화면 + 호버 인터랙션 + 시간대 그라디언트 + 차트 |
-| 12차까지 누적된 v1 코드 | 클린 리셋 (단 1 commit = v2.0.0) | v2.0.0 → v2.3.5 → v3.0.0 (전투) → v3.0.3 (CanvasLayer) → v3.1 (라인 차트) |
-| 결정 큐 알림만 (LOW/MEDIUM 안 보임) | 모든 우선순위 모달 + 자동 진행 분기 | + BANDIT_RAID HIGH 추가 (12h마다) |
-| (해당 없음) | GameWorld.apply_result (결과 코드 → 자원 변동) | BATTLE_* 전용 코드 통합 + history ring buffer |
+| 버전 | 변경 |
+|---|---|
+| v1 (폐기) | Godot 4 + Vercel Web export + KayKit 3D GLB + lazy fetch → 검은 화면 |
+| v2 | 클린 리셋 (단 1 commit) — Wesnoth 2D PNG (5 factions, 432 자산) + 결정 큐 모든 우선순위 모달 |
+| v3.0 | 전투 화면 (BattleScene 3상태 + 그리드 + 손실 카드) |
+| v3.1 | 라인 차트 + 호버 인터랙션 + 시간대 그라디언트 + 타이틀 화면 |
+| v4.0 | **Phase A 4단계 (사건 4종 + 용병 9-class + 왕조 court + 빌딩 4종) + UI 1차 복귀** |
+
+자세한 마이그레이션 로그는 [`CHANGELOG.md`](CHANGELOG.md) 참조.
 
 ---
 
@@ -329,3 +272,5 @@ LB_VERIFY=1 godot --headless    # 5~15초
 - [Godot 4 문서](https://docs.godotengine.org/en/stable/)
 - [Battle for Wesnoth](https://www.wesnoth.org/) — 자산 출처
 - [Nanum Gothic 폰트](https://fonts.google.com/specimen/Nanum+Gothic)
+- [변경 이력](./CHANGELOG.md)
+- [라이선스](./docs/CREDITS.md)
