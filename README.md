@@ -5,7 +5,7 @@
 
 [![Godot](https://img.shields.io/badge/Engine-Godot%204.7.1-478CBF?logo=godot-engine&logoColor=white)](https://godotengine.org)
 [![Platform](https://img.shields.io/badge/Platform-macOS-000?logo=apple&logoColor=white)](https://www.apple.com/macos)
-[![Version](https://img.shields.io/badge/Version-v4.0.0-blue)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-v4.1.0--alpha-blue)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/code-MIT-green)](./LICENSE)
 [![Assets](https://img.shields.io/badge/assets-CC--BY--4.0%20%2F%20OFL-blue)](./docs/CREDITS.md)
 
@@ -44,6 +44,14 @@
   - 모바일 414×896: 모달 viewport 90%×70% (offset 373×627)
   - 태블릿 768×1024: 모달 viewport 90%×70% (offset 691×717)
   - TopResourceBar 자식 Label에 `size_flags_horizontal=3` (FILL) + `clip_text=true` (overflow 방지)
+- **B-5. 단일 슬롯 정책** — autosave 1개로 단순화
+  - `SaveManager.SAVE_SLOT = "autosave"` (이전 다중 슬롯 폐기)
+  - `save_game(slot) / load_game(slot)` — slot 인자 무시 (호환성 위해 시그니처만 보존)
+  - `has_save() / delete_save()` 신규 API
+  - `list_saves()` — 0 또는 `[autosave]` 1개만 (호환성)
+  - `_cleanup_legacy_slots()` — 첫 실행 시 verify_* 등 8개 자동 정리 (1회)
+  - title_screen: "이어하기 (N개 저장)" → "이어하기" 또는 "저장 없음"
+  - main.gd `_on_title_continue`: list_saves[0] → has_save + load_game() 단일 로드
 
 ### v4.0.0 Phase A
 
@@ -109,10 +117,10 @@ open "build/macos/Last Banner.app"          # 더블클릭과 동일
 ### 헤드리스 검증 (LB_VERIFY=1)
 ```bash
 cd ~/work/last-banner
-LB_VERIFY=1 godot --headless    # 13+8단계 자동 검증 (~5~15초)
+LB_VERIFY=1 godot --headless    # 13+9단계 자동 검증 (~5~15초)
 ```
 
-**검증 단계 (21종)**:
+**검증 단계 (22종)**:
 1. 새 게임 초기 상태 (gold=200 food=100 pop=50)
 2. 1일 시뮬 (1440분)
 3. 자원 변동
@@ -135,22 +143,47 @@ LB_VERIFY=1 godot --headless    # 13+8단계 자동 검증 (~5~15초)
 20. **B-2 사운드** 6단계 (BGM/SFX 자산 / 헤드리스 가드 / 9개 통합 마커)
 21. **B-3 게임 오버** 11단계 (3종 패배 / 식량 회복 리셋 / round-trip)
 22. **B-4 모바일 viewport** 9단계 (데스크탑/모바일/태블릿 offset 시뮬레이션)
+23. **B-5 단일 슬롯** 8단계 (SAVE_SLOT/has_save/delete_save/list_saves ≤ 1 + main.gd/title_screen 단일화)
 
 ---
 
 ## 🖼 화면 흐름
+### 1. 타이틀 화면 (v4.1 단일 슬롯)
 
-### 1. 타이틀 화면
 ```
 🏰 LAST BANNER
 변방 영지 운영 로그라이크
 
-[▶ 새로 시작]       (항상 활성, 금톤)
-[⏵ 이어하기]        (저장 파일 있을 때만 활성, 식량톤)
+[▶ 새로 시작]        (활성, 골드톤)
+[⏵ 이어하기]         (autosave 있으면 활성, 식량톤 / 없으면 비활성 "저장 없음")
+[❓ 튜토리얼 다시보기]  (활성, 인구톤)
 [✕ 게임 종료]        (위험톤)
+
+마지막 자동 저장: 2026-07-20 14:32 · Day 7
+(v4.1.0: 단일 autosave 슬롯 — v4.0 다중 슬롯 폐기)
 ```
 
-### 2. 게임 모드
+### 2. 튜토리얼 4단계 (v4.1 신규)
+
+새 게임 첫 진입 시 자동 표시 (이후 "튜토리얼 다시보기" 버튼으로 재시청)
+
+```
+┌──────────────────────────────────────────────┐
+│ 🤖 자동 진행 + 위임                            │
+│                                              │
+│ 게임이 알아서 시간이 흐르고 자원이 변합니다.     │
+│ 결정이 필요하면 모달이 자동으로 뜹니다.           │
+│                                              │
+│ (P: 자동 진행 토글)                            │
+│                              [1 / 4]          │
+│                          [건너뛰기] [다음 (2/4) →] │
+└──────────────────────────────────────────────┘
++ DimBG (검은 반투명 0.82 alpha) + 자동 8초 진행
+```
+
+**4단계**: 🤖 자동 진행 → 📜 결정 큐 11종 → 💰 자원 변동 → ⚔️ 4가지 시스템 (용병/왕조/빌딩/차트)
+
+### 3. 게임 모드
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │ TopResourceBar: 🕯 Day 25  20:24  |  ⏯ ON  💰 N  🌾 N  👥 N  ⭐ N   │ ← 자원별 색상
@@ -221,7 +254,7 @@ DecisionQueue.push(CRITICAL) ► GameManager.pause_for_decision()
 - **결정 큐 사건 11종**: VISITOR / BANDIT_RAID / DIPLOMACY / FOOD_SHORTAGE / PEASANT_PETITION / WINTER_PREPARATION / MERCHANT_CARAVAN / PLAGUE / MERCENARY_OFFER / SUCCESSION_AUDIT / HEIR_BETRAYAL / BUILD_CONSTRUCTION
 - **결과 핸들러 27+종**: GameWorld.RESULT_EFFECTS 통합 dict
 
-### 4. 게임 오버 화면 (v4.1 신규)
+### 5. 게임 오버 화면 (v4.1 신규)
 
 ```
 ┌────────────────────────────────────────────┐
@@ -290,6 +323,7 @@ LB_VERIFY=1 godot --headless    # 5~15초
 | `await get_tree().create_timer().timeout` 헤드리스 hang | LB_VERIFY는 동기 처리 |
 | `@onready $SceneInstance` 인스턴스화 순서 | main.gd처럼 `var + call_deferred` 동적 검색 |
 | PanelContainer 추가 시 anchor 미명시 → layout 깨짐 | tscn은 검증된 형태로 유지, 색상만 동적 적용 |
+| **다중 슬롯 정책으로 verify_* 8개 누적 (v4.0 이전)** | **v4.1 단일 슬롯 — `_cleanup_legacy_slots()` 1회 자동 정리** |
 
 상세 패턴:
 - `godot-game-bootstrap` 스킬 (Godot 부트스트랩)
@@ -297,7 +331,7 @@ LB_VERIFY=1 godot --headless    # 5~15초
 
 ---
 
-## 🔄 v1 → v2 → v3 → v4 변경 이력 (요약)
+## 🔄 v1 → v2 → v3 → v4 → v4.1 변경 이력 (요약)
 
 | 버전 | 변경 |
 |---|---|
@@ -306,7 +340,7 @@ LB_VERIFY=1 godot --headless    # 5~15초
 | v3.0 | 전투 화면 (BattleScene 3상태 + 그리드 + 손실 카드) |
 | v3.1 | 라인 차트 + 호버 인터랙션 + 시간대 그라디언트 + 타이틀 화면 |
 | v4.0 | **Phase A 4단계** (사건 4종 + 용병 9-class + 왕조 court + 빌딩 4종) + UI 1차 복귀 |
-| v4.1 | **Phase B 4단계** (튜토리얼 + 사운드 + 게임 종료 + 모바일 viewport) — 진행 중 |
+| v4.1 | **Phase B 5단계** (튜토리얼 + 사운드 + 게임 종료 + 모바일 viewport + 단일 슬롯) — 진행 중 |
 
 자세한 마이그레이션 로그는 [`CHANGELOG.md`](./CHANGELOG.md) 참조.
 
