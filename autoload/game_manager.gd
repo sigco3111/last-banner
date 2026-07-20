@@ -6,6 +6,7 @@ enum State { BOOT, MENU, PLAYING, PAUSED, DECISION_PENDING, GAME_OVER }
 
 var current_state: int = State.BOOT
 var save_slot: String = "default"
+var tutorial_seen: bool = false   # v4.1 튜토리얼 1회 표시 플래그
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -48,9 +49,11 @@ func save_state() -> Dictionary:
 	return {
 		"current_state": State.keys()[current_state],
 		"save_slot": save_slot,
+		"tutorial_seen": tutorial_seen,
 	}
 
 func load_state(data: Dictionary) -> void:
 	var state_str: String = data.get("current_state", "BOOT")
 	current_state = State[state_str] if state_str in State.keys() else State.BOOT
 	save_slot = data.get("save_slot", "default")
+	tutorial_seen = data.get("tutorial_seen", false)

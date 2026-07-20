@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3 uid="uid://bmainhubv2"]
+[gd_scene load_steps=6 format=3 uid="uid://bmainhubv2"]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/manor_dashboard.tscn" id="2_dash"]
 [ext_resource type="PackedScene" path="res://scenes/title_screen.tscn" id="3_title"]
 [ext_resource type="PackedScene" path="res://scenes/battle_scene.tscn" id="4_battle"]
+[ext_resource type="PackedScene" path="res://scenes/tutorial.tscn" id="5_tutorial"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -103,6 +104,11 @@ text = "🏠 타이틀로"
 
 [node name="ModalLayer" type="CanvasLayer" parent="."]
 layer = 100
+
+[node name="TutorialLayer" type="CanvasLayer" parent="."]
+layer = 15
+
+[node name="Tutorial" parent="TutorialLayer" instance=ExtResource("5_tutorial")]
 
 [node name="DimBG" type="ColorRect" parent="ModalLayer"]
 anchor_right = 1.0

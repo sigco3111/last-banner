@@ -1,13 +1,15 @@
 extends Control
-## title_screen.gd — 타이틀 화면 (시작 / 이어하기 / 종료)
+## title_screen.gd — 타이틀 화면 (시작 / 이어하기 / 종료 / 튜토리얼 다시보기)
 ## SaveManager.list_saves()로 저장 파일 존재 여부 확인 → '이어하기' 버튼 활성/비활성
 
 signal start_new_game
 signal continue_game
 signal quit_game_requested
+signal retutorial_requested
 
 var start_button: Button = null
 var continue_button: Button = null
+var tutorial_button: Button = null
 var quit_button: Button = null
 var status_label: Label = null
 
@@ -20,6 +22,7 @@ func _ready() -> void:
 func _find_nodes() -> void:
 	start_button = get_node_or_null("CenterBox/StartButton") as Button
 	continue_button = get_node_or_null("CenterBox/ContinueButton") as Button
+	tutorial_button = get_node_or_null("CenterBox/TutorialButton") as Button
 	quit_button = get_node_or_null("CenterBox/QuitButton") as Button
 	status_label = get_node_or_null("CenterBox/StatusLabel") as Label
 	print("[Title] 동적 노드 검색 완료")
@@ -39,6 +42,7 @@ func _apply_styles() -> void:
 	# 버튼 색상 (모든 4상태)
 	UITheme.apply_button_styles(start_button, UITheme.BG_BUTTON.lerp(UITheme.COLOR_GOLD, 0.18))
 	UITheme.apply_button_styles(continue_button, UITheme.BG_BUTTON.lerp(UITheme.COLOR_FOOD, 0.12))
+	UITheme.apply_button_styles(tutorial_button, UITheme.BG_BUTTON.lerp(UITheme.COLOR_POPULATION, 0.10))
 	UITheme.apply_button_styles(quit_button, UITheme.BG_BUTTON.lerp(UITheme.TEXT_DANGER, 0.15))
 	# 상태 라벨
 	if status_label:
@@ -49,6 +53,8 @@ func _connect_signals() -> void:
 		start_button.pressed.connect(_on_start_pressed)
 	if continue_button:
 		continue_button.pressed.connect(_on_continue_pressed)
+	if tutorial_button:
+		tutorial_button.pressed.connect(_on_tutorial_pressed)
 	if quit_button:
 		quit_button.pressed.connect(_on_quit_pressed)
 
@@ -77,6 +83,10 @@ func _on_quit_pressed() -> void:
 	print("[Title] 게임 종료")
 	emit_signal("quit_game_requested")
 	get_tree().quit()
+
+func _on_tutorial_pressed() -> void:
+	print("[Title] 튜토리얼 다시보기")
+	emit_signal("retutorial_requested")
 
 ## 외부에서 '이어하기' 가능 상태 강제 갱신 (save 후 등)
 func refresh() -> void:

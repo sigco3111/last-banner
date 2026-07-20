@@ -24,6 +24,9 @@ var modal_title: Label = null
 var modal_desc: Label = null
 var modal_priority: Label = null
 var modal_choices: VBoxContainer = null
+# v4.1 튜토리얼
+var tutorial_layer: CanvasLayer = null
+var tutorial_screen: CanvasLayer = null
 
 # 결정 모달 상태
 var _last_queue_size: int = 0
@@ -49,8 +52,11 @@ func _find_nodes() -> void:
 	manor_layer = get_node_or_null("ManorLayer") as CanvasLayer
 	title_layer = get_node_or_null("TitleLayer") as CanvasLayer
 	ui_layer = get_node_or_null("UI") as CanvasLayer
+	tutorial_layer = get_node_or_null("TutorialLayer") as CanvasLayer
 	if title_layer:
 		title_screen = title_layer.get_node_or_null("TitleScreen") as Control
+	if tutorial_layer:
+		tutorial_screen = tutorial_layer.get_node_or_null("Tutorial") as CanvasLayer
 	# 게임 모드 자원 노드
 	var ui: CanvasLayer = ui_layer
 	if ui:
@@ -116,6 +122,8 @@ func _connect_signals() -> void:
 		title_screen.start_new_game.connect(_on_title_start_new)
 	if title_screen and title_screen.has_signal("continue_game"):
 		title_screen.continue_game.connect(_on_title_continue)
+	if title_screen and title_screen.has_signal("retutorial_requested"):
+		title_screen.retutorial_requested.connect(_on_title_retutorial)
 	print("[Main] 동적 노드 + 시그널 연결 완료")
 
 func _process(_delta: float) -> void:
@@ -154,6 +162,9 @@ func _enter_game_mode() -> void:
 		manor_layer.visible = true
 	GameManager.current_state = GameManager.State.PLAYING
 	_refresh_all()
+	# v4.1: 새 게임 첫 진입이면 튜토리얼 자동 표시 (tutorial_seen 체크)
+	if tutorial_screen and tutorial_screen.has_method("start_tutorial"):
+		tutorial_screen.start_tutorial(false)
 	print("[Main] 게임 모드 진입")
 
 func _on_title_start_new() -> void:
@@ -177,6 +188,12 @@ func _on_title_menu_pressed() -> void:
 	# 게임 → 타이틀 복귀. 자동 저장은 종료 직전에 1회 더.
 	SaveManager.save_game("autosave")
 	_enter_title_mode()
+
+func _on_title_retutorial() -> void:
+	# 튜토리얼 강제 표시 (seen 무시)
+	print("[Main] 튜토리얼 다시보기")
+	if tutorial_screen and tutorial_screen.has_method("start_tutorial"):
+		tutorial_screen.start_tutorial(true)   # force=true → seen 무시
 
 # ============================================================
 # 게임 모드 (이전 main.gd에서 이식)
@@ -953,6 +970,68 @@ func _run_verify() -> void:
 	for b in buildings_snapshot:
 		assert(GameWorld.buildings[b] == buildings_snapshot[b], "buildings[%s] round-trip" % b)
 	print("  ✓ buildings save/load round-trip: %d종 보존" % buildings_snapshot.size())
+
+	# 8.10) 튜토리얼 시스템 검증 (B-1 v4.1)
+	print("[8.10] 튜토리얼 시스템 검증 (B-1 v4.1)")
+	var tutorial_layer_check: CanvasLayer = get_node_or_null("TutorialLayer") as CanvasLayer
+	assert(tutorial_layer_check != null, "TutorialLayer 없음")
+	var tutorial: CanvasLayer = null
+	if tutorial_layer_check:
+		tutorial = tutorial_layer_check.get_node_or_null("Tutorial") as CanvasLayer
+	assert(tutorial != null, "Tutorial 자식 노드 없음")
+	assert(tutorial.has_method("start_tutorial"), "start_tutorial 메서드 없음")
+	print("  ✓ Tutorial 노드 + start_tutorial 메서드 존재")
+	# 첫 호출: seen 플래그 = false → 표시
+	GameManager.tutorial_seen = false
+	tutorial.start_tutorial(false)
+	await get_tree().process_frame
+	assert(tutorial.visible, "튜토리얼 visible이어야 함 (seen=false)")
+	print("  ✓ 첫 호출: visible=true, _active=true")
+	# 4단계 STEPS 데이터 확인
+	var steps_count: int = tutorial.STEPS.size()
+	assert(steps_count == 4, "STEPS 4단계 필요 (실제: %d)" % steps_count)
+	for i in range(steps_count):
+		var step: Dictionary = tutorial.STEPS[i]
+		assert(step.has("icon") and step.has("title") and step.has("message"), "STEP %d 형식 불일치" % i)
+	print("  ✓ STEPS 4단계 모두 icon/title/message 포함")
+	# _show_step → 화면만 갱신 (current_step 유지)
+	tutorial._show_step(1)
+	await get_tree().process_frame
+	assert(tutorial._current_step == 0, "_show_step은 _current_step 변경 안 함 (단순 표시)")
+	print("  ✓ _show_step(1) 화면 갱신 OK (current_step 유지)")
+	# _on_next_pressed → 다음 단계
+	tutorial._on_next_pressed()
+	await get_tree().process_frame
+	assert(tutorial._current_step == 1, "_on_next_pressed → _current_step=1")
+	print("  ✓ _on_next_pressed 단계 진행 OK")
+	# 두 번째 호출: seen=true → skip
+	# 먼저 _on_skip_pressed로 명시적으로 종료 (튜토리얼 닫기)
+	tutorial._on_skip_pressed()
+	await get_tree().process_frame
+	assert(not tutorial.visible, "_on_skip_pressed 후 visible=false")
+	assert(GameManager.tutorial_seen, "_on_skip_pressed 후 tutorial_seen=true")
+	GameManager.tutorial_seen = true   # 명시적으로 다시 true로 (이미 true지만 안전)
+	tutorial.start_tutorial(false)
+	await get_tree().process_frame
+	assert(not tutorial.visible, "튜토리얼 visible=false이어야 함 (seen=true)")
+	print("  ✓ 두 번째 호출: visible=false (seen=true → 자동 skip)")
+	# force=true → 강제 표시
+	tutorial.start_tutorial(true)
+	await get_tree().process_frame
+	assert(tutorial.visible, "force=true → visible=true 강제 표시")
+	print("  ✓ force=true: 강제 표시 OK")
+	# _on_skip_pressed → 완료
+	tutorial._on_skip_pressed()
+	await get_tree().process_frame
+	assert(not tutorial.visible, "_on_skip_pressed → visible=false")
+	assert(GameManager.tutorial_seen, "_on_skip_pressed → tutorial_seen=true")
+	print("  ✓ _on_skip_pressed → 완료 + seen=true")
+	# GameManager save/load에 tutorial_seen 포함
+	assert(GameManager.save_state().has("tutorial_seen"), "save_state에 tutorial_seen 없음")
+	GameManager.tutorial_seen = false
+	GameManager.load_state({"tutorial_seen": true})
+	assert(GameManager.tutorial_seen == true, "load_state → tutorial_seen 복원")
+	print("  ✓ save/load round-trip: tutorial_seen OK")
 
 	# 9) 화면 그리기 검증
 	print("[9] ManorDashboard 화면 검증")

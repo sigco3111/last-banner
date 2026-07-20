@@ -29,6 +29,7 @@ AssetRegistry="*res://autoload/asset_registry.gd"
 KoreanFont="*res://autoload/korean_font.gd"
 MercenaryData="*res://autoload/mercenary_data.gd"
 UITheme="*res://autoload/ui_theme.gd"
+AudioManager="*res://autoload/audio_manager.gd"
 _mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
 
 [display]

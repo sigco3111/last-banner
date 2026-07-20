@@ -60,6 +60,10 @@ modulate = Color(0.7, 0.7, 0.7, 1)
 [node name="Spacer3" type="Control" parent="CenterBox"]
 custom_minimum_size = Vector2(0, 12)
 
+[node name="TutorialButton" type="Button" parent="CenterBox"]
+custom_minimum_size = Vector2(280, 44)
+text = "❓ 튜토리얼 다시보기"
+
 [node name="QuitButton" type="Button" parent="CenterBox"]
 custom_minimum_size = Vector2(280, 48)
 text = "✕ 게임 종료"
