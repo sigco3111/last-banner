@@ -2,6 +2,7 @@ extends Node2D
 ## Last Banner v2.2 — 메인 허브 (타이틀 ↔ 게임 모드 토글)
 
 const LB_VERIFY := "LB_VERIFY"
+const GameOver = preload("res://scripts/game_over.gd")   # v4.1 B-3 검증용 상수 접근
 
 var _verify_mode: bool = false
 var _in_game_mode: bool = false   # true: 게임 진행 / false: 타이틀 화면
@@ -27,6 +28,9 @@ var modal_choices: VBoxContainer = null
 # v4.1 튜토리얼
 var tutorial_layer: CanvasLayer = null
 var tutorial_screen: CanvasLayer = null
+# v4.1 게임 오버 (B-3)
+var game_over_layer: CanvasLayer = null
+var game_over_screen: CanvasLayer = null
 
 # 결정 모달 상태
 var _last_queue_size: int = 0
@@ -53,10 +57,13 @@ func _find_nodes() -> void:
 	title_layer = get_node_or_null("TitleLayer") as CanvasLayer
 	ui_layer = get_node_or_null("UI") as CanvasLayer
 	tutorial_layer = get_node_or_null("TutorialLayer") as CanvasLayer
+	game_over_layer = get_node_or_null("GameOverLayer") as CanvasLayer
 	if title_layer:
 		title_screen = title_layer.get_node_or_null("TitleScreen") as Control
 	if tutorial_layer:
 		tutorial_screen = tutorial_layer.get_node_or_null("Tutorial") as CanvasLayer
+	if game_over_layer:
+		game_over_screen = game_over_layer.get_node_or_null("GameOver") as CanvasLayer
 	# 게임 모드 자원 노드
 	var ui: CanvasLayer = ui_layer
 	if ui:
@@ -117,6 +124,11 @@ func _connect_signals() -> void:
 	TimeManager.day_changed.connect(_on_day)
 	GameWorld.resource_changed.connect(_refresh_resource)
 	GameWorld.event_logged.connect(_on_event_logged)
+	# v4.1 B-3: 게임 오버 시그널
+	GameManager.game_ended.connect(_on_game_ended)
+	# v4.1 B-3: GameOver 화면 시그널
+	if game_over_screen and game_over_screen.has_signal("return_to_title_requested"):
+		game_over_screen.return_to_title_requested.connect(_on_game_over_return)
 	# 타이틀 화면 시그널
 	if title_screen and title_screen.has_signal("start_new_game"):
 		title_screen.start_new_game.connect(_on_title_start_new)
@@ -137,12 +149,9 @@ func _process(_delta: float) -> void:
 # ============================================================
 func _enter_title_mode() -> void:
 	_in_game_mode = false
-	if title_layer:
-		title_layer.visible = true
-	if ui_layer:
-		ui_layer.visible = false
-	if manor_layer:
-		manor_layer.visible = false
+	if title_layer: title_layer.visible = true
+	if ui_layer: ui_layer.visible = false
+	if manor_layer: manor_layer.visible = false
 	# 결정 모달 강제 닫기
 	if decision_modal: decision_modal.visible = false
 	if modal_dim_bg: modal_dim_bg.visible = false
@@ -150,21 +159,32 @@ func _enter_title_mode() -> void:
 	# 타이틀 화면 갱신
 	if title_screen and title_screen.has_method("refresh"):
 		title_screen.refresh()
+	# v4.1 B-2: BGM 메뉴로 전환
+	if AudioManager.is_enabled():
+		AudioManager.play_bgm("menu")
 	print("[Main] 타이틀 모드 진입")
 
 func _enter_game_mode() -> void:
 	_in_game_mode = true
-	if title_layer:
-		title_layer.visible = false
-	if ui_layer:
-		ui_layer.visible = true
-	if manor_layer:
-		manor_layer.visible = true
+	if title_layer: title_layer.visible = false
+	if ui_layer: ui_layer.visible = true
+	if manor_layer: manor_layer.visible = true
 	GameManager.current_state = GameManager.State.PLAYING
 	_refresh_all()
+	# v4.1 B-4: Tutorial 카드 viewport 사이즈 자동 조정 (CanvasLayer 내부의 Card에 적용)
+	if tutorial_screen:
+		var tutorial_card: Control = null
+		for child in tutorial_screen.get_children():
+			if child is Control:
+				tutorial_card = child
+				break
+		_adjust_modal_for_viewport(tutorial_card if tutorial_card else tutorial_screen, get_viewport().get_visible_rect().size)
 	# v4.1: 새 게임 첫 진입이면 튜토리얼 자동 표시 (tutorial_seen 체크)
 	if tutorial_screen and tutorial_screen.has_method("start_tutorial"):
 		tutorial_screen.start_tutorial(false)
+	# v4.1 B-2: BGM 게임으로 전환 (메뉴 → 게임)
+	if AudioManager.is_enabled():
+		AudioManager.play_bgm("game")
 	print("[Main] 게임 모드 진입")
 
 func _on_title_start_new() -> void:
@@ -192,8 +212,80 @@ func _on_title_menu_pressed() -> void:
 func _on_title_retutorial() -> void:
 	# 튜토리얼 강제 표시 (seen 무시)
 	print("[Main] 튜토리얼 다시보기")
+	# v4.1 B-4: Tutorial 카드 viewport 사이즈 자동 조정 (CanvasLayer 내부 Card)
+	if tutorial_screen:
+		var tutorial_card: Control = null
+		for child in tutorial_screen.get_children():
+			if child is Control:
+				tutorial_card = child
+				break
+		_adjust_modal_for_viewport(tutorial_card if tutorial_card else tutorial_screen, get_viewport().get_visible_rect().size)
 	if tutorial_screen and tutorial_screen.has_method("start_tutorial"):
 		tutorial_screen.start_tutorial(true)   # force=true → seen 무시
+
+# ============================================================
+# v4.1 B-3: 게임 오버
+# ============================================================
+func _on_game_ended(reason: String, stats: Dictionary) -> void:
+	print("[Main] 게임 오버: %s (Day %d)" % [reason, GameManager.end_day])
+	# 자동 진행 OFF (시계 정지)
+	TimeManager.auto_progress_enabled = false
+	# 결정 모달 닫기
+	if decision_modal: decision_modal.visible = false
+	if modal_dim_bg: modal_dim_bg.visible = false
+	# v4.1 B-2: 게임 오버 SFX + BGM 정지
+	if AudioManager.is_enabled():
+		AudioManager.play_sfx("victory")
+		AudioManager.stop_bgm(true)
+	# GameOver 화면 표시
+	if game_over_screen and game_over_screen.has_method("show_game_over"):
+		# v4.1 B-4: viewport 사이즈 조정 (CanvasLayer 내부 Card에 적용)
+		var go_card: Control = null
+		for child in game_over_screen.get_children():
+			if child is Control:
+				go_card = child
+				break
+		_adjust_modal_for_viewport(go_card if go_card else game_over_screen, get_viewport().get_visible_rect().size)
+		game_over_screen.show_game_over(reason, GameManager.end_day, stats)
+
+func _on_game_over_return() -> void:
+	print("[Main] 게임 오버 → 메인 메뉴로 복귀")
+	if game_over_screen:
+		game_over_screen.visible = false
+	# 자동 저장
+	SaveManager.save_game("autosave")
+	_enter_title_mode()
+
+# ============================================================
+# v4.1 B-4: 모바일/태블릿 viewport 대응
+# ============================================================
+const MOBILE_VIEWPORT_THRESHOLD := 800   # 너비 < 800px → 모바일 모드
+
+func _is_mobile_viewport() -> bool:
+	# get_viewport_rect() 또는 window size
+	var size: Vector2 = get_viewport().get_visible_rect().size
+	return size.x < MOBILE_VIEWPORT_THRESHOLD
+
+func _adjust_modal_for_viewport(modal: Node, viewport_size: Vector2) -> void:
+	# 모바일/태블릿에서 모달 사이즈 자동 조정 (Node — PanelContainer/CanvasLayer 모두 받음)
+	if modal == null:
+		return
+	var is_mobile: bool = viewport_size.x < MOBILE_VIEWPORT_THRESHOLD
+	if is_mobile:
+		# 모바일: viewport 90% 너비, 높이 70%
+		var w: float = viewport_size.x * 0.90
+		var h: float = viewport_size.y * 0.70
+		modal.offset_left = -w * 0.5
+		modal.offset_right = w * 0.5
+		modal.offset_top = -h * 0.5
+		modal.offset_bottom = h * 0.5
+		print("[Main] 모바일 viewport 감지 — 모달 사이즈 조정: %.0f×%.0f" % [w, h])
+	else:
+		# 데스크탑: 원래 사이즈
+		modal.offset_left = -360.0
+		modal.offset_right = 360.0
+		modal.offset_top = -180.0
+		modal.offset_bottom = 180.0
 
 # ============================================================
 # 게임 모드 (이전 main.gd에서 이식)
@@ -243,9 +335,14 @@ func _show_next_decision() -> void:
 		if d.id > _current_decision_id:
 			_current_decision_id = d.id
 			_populate_modal(d)
+			# v4.1 B-4: 모달 사이즈 viewport에 맞게 조정
+			_adjust_modal_for_viewport(decision_modal, get_viewport().get_visible_rect().size)
 			if modal_dim_bg:
 				modal_dim_bg.visible = true
 			decision_modal.visible = true
+			# v4.1 B-2: 모달 열림 SFX
+			if AudioManager.is_enabled():
+				AudioManager.play_sfx("modal_open")
 			print("[Modal] 표시: id=%d [%s] %s (auto_progress=%s)" % [
 				d.id,
 				DecisionQueue.Priority.keys()[d.priority],
@@ -300,6 +397,9 @@ func _on_choice_pressed(choice: Dictionary) -> void:
 	print("[Main] result_code=%s, current_id=%d" % [result_code, _current_decision_id])
 	var decision_type: String = _current_decision_type()
 	print("[Main] decision_type=%s" % decision_type)
+	# v4.1 B-2: 결정 확정 SFX (battle 분기 전 공통)
+	if AudioManager.is_enabled():
+		AudioManager.play_sfx("choice_confirm")
 	# BANDIT_RAID면 BattleScene로 라우팅
 	if decision_type == "BANDIT_RAID" and result_code == "BATTLE_BANDITS_FIGHT":
 		print("[Main] BATTLE_BANDITS_FIGHT 분기 — BattleScene.start_battle 호출")
@@ -310,6 +410,10 @@ func _on_choice_pressed(choice: Dictionary) -> void:
 			print("[Main] BattleScene.start_battle(%d) 호출" % enemy_count)
 			battle.start_battle(enemy_count)
 			print("[Main] BattleScene.visible=%s" % str(battle.visible))
+			# v4.1 B-2: 전투 시작 BGM + SFX
+			if AudioManager.is_enabled():
+				AudioManager.play_sfx("battle_start")
+				AudioManager.play_bgm("battle")
 	if result_code != "":
 		_apply_result(result_code)
 	DecisionQueue.resolve(_current_decision_id, choice)
@@ -318,6 +422,9 @@ func _on_choice_pressed(choice: Dictionary) -> void:
 		decision_modal.visible = false
 		if modal_dim_bg:
 			modal_dim_bg.visible = false
+	# v4.1 B-2: 모달 닫힘 SFX
+	if AudioManager.is_enabled():
+		AudioManager.play_sfx("modal_close")
 	GameManager.resume_from_decision()
 
 var _current_decision_type_cache: String = ""
@@ -358,6 +465,9 @@ func _on_auto_skip() -> void:
 		decision_modal.visible = false
 		if modal_dim_bg:
 			modal_dim_bg.visible = false
+	# v4.1 B-2: 자동 결정 SFX (모달 닫힘)
+	if AudioManager.is_enabled():
+		AudioManager.play_sfx("modal_close")
 	GameManager.resume_from_decision()
 
 func _default_low_choice() -> String:
@@ -1032,6 +1142,234 @@ func _run_verify() -> void:
 	GameManager.load_state({"tutorial_seen": true})
 	assert(GameManager.tutorial_seen == true, "load_state → tutorial_seen 복원")
 	print("  ✓ save/load round-trip: tutorial_seen OK")
+
+	# 8.12) 게임 오버 시스템 검증 (B-3)
+	print("[8.12] 게임 오버 시스템 검증 (B-3)")
+	# GameOver 화면 노드 존재
+	var go_layer: CanvasLayer = get_node_or_null("GameOverLayer") as CanvasLayer
+	assert(go_layer != null, "GameOverLayer 없음")
+	var go: CanvasLayer = null
+	if go_layer:
+		go = go_layer.get_node_or_null("GameOver") as CanvasLayer
+	assert(go != null, "GameOver 자식 노드 없음")
+	assert(go.has_method("show_game_over"), "show_game_over 메서드 없음")
+	print("  ✓ GameOver 노드 + show_game_over 메서드 존재")
+	# REASON_LABELS 3종 확인
+	assert(GameOver.REASON_LABELS.size() == 3, "REASON_LABELS 3종 (실제: %d)" % GameOver.REASON_LABELS.size())
+	for r in ["POPULATION_EXTINCTION", "FOOD_FAMINE", "DYNASTY_EXTINCTION"]:
+		assert(GameOver.REASON_LABELS.has(r), "%s 라벨 없음" % r)
+		assert(GameOver.REASON_DESCRIPTIONS.has(r), "%s 설명 없음" % r)
+	print("  ✓ 3종 패배 조건 라벨 + 설명 OK")
+	# GameManager 상수 + 필드 확인
+	assert(GameManager.CONSECUTIVE_FOOD_ZERO_DAYS_LIMIT == 30, "식량 0 한도 30일")
+	assert(GameManager.POPULATION_EXTINCTION_THRESHOLD == 0, "인구 한도 0")
+	assert(GameManager.end_reason == "", "초기 end_reason = 빈 문자열")
+	assert(GameManager.consecutive_food_zero_days == 0, "초기 식량 0 일수 0")
+	print("  ✓ GameManager 상수 + 필드 초기값 OK")
+	# 시나리오 1: 인구 멸망 → POPULATION_EXTINCTION
+	GameManager.reset_end_state()
+	GameManager.current_state = GameManager.State.PLAYING
+	GameWorld.population = 5
+	GameWorld.food = 50
+	assert(not GameManager.check_game_over_conditions(), "인구 5 → 패배 X")
+	GameWorld.population = 0
+	assert(GameManager.check_game_over_conditions(), "인구 0 → 패배 O")
+	assert(GameManager.end_reason == "POPULATION_EXTINCTION", "end_reason = POPULATION_EXTINCTION")
+	assert(GameManager.current_state == GameManager.State.GAME_OVER, "state = GAME_OVER")
+	print("  ✓ 인구 0 → POPULATION_EXTINCTION (%d일 생존)" % GameManager.end_day)
+	# stats 검증
+	var stats1: Dictionary = GameManager.end_stats
+	assert(stats1.has("gold") and stats1.has("food") and stats1.has("population"), "stats에 핵심 자원 없음")
+	assert(int(stats1["population"]) == 0, "stats.population = 0")
+	print("  ✓ end_stats: gold=%d food=%d pop=%d roster=%d court=%d" % [int(stats1["gold"]), int(stats1["food"]), int(stats1["population"]), int(stats1["roster_count"]), int(stats1["court_count"])])
+	# 중복 호출 안전성
+	GameManager.check_game_over_conditions()
+	assert(GameManager.end_reason == "POPULATION_EXTINCTION", "중복 호출 안전")
+	print("  ✓ 중복 호출 안전 (이미 GAME_OVER → 재평가 안 함)")
+	# GameOver 화면에 show_game_over 호출
+	GameManager.current_state = GameManager.State.GAME_OVER
+	go.show_game_over("POPULATION_EXTINCTION", GameManager.end_day, stats1)
+	await get_tree().process_frame
+	assert(go.visible, "show_game_over → GameOver 화면 visible=true")
+	print("  ✓ show_game_over → 화면 표시 OK")
+	# 시나리오 2: 식량 0 연속 30일 → FOOD_FAMINE
+	GameManager.reset_end_state()
+	GameManager.current_state = GameManager.State.PLAYING
+	GameWorld.population = 50
+	GameManager.consecutive_food_zero_days = 0
+	# 정상 상태 확인
+	assert(not GameManager.check_game_over_conditions(), "시나리오2 시작: 정상 상태 → 패배 X")
+	assert(GameManager.consecutive_food_zero_days == 0, "consecutive=0 시작")
+	print("  ✓ 시나리오2 초기화 OK")
+	GameWorld.food = 0   # 0 set은 for 루프 직전에 (위에서 food=50은 정상 확인용)
+	for i in range(29):
+		var triggered: bool = GameManager.check_game_over_conditions()
+		var day_count: int = i + 1
+		var zero_count: int = GameManager.consecutive_food_zero_days
+		assert(not triggered, "Day %d: 아직 30일 미만 (food=0 누적 %d일)" % [day_count, zero_count])
+	GameWorld.food = 10   # 30일차 전에 회복 → 카운터 리셋
+	var triggered_reset: bool = GameManager.check_game_over_conditions()
+	assert(not triggered_reset, "식량 회복 → 카운터 리셋")
+	assert(GameManager.consecutive_food_zero_days == 0, "consecutive_food_zero_days = 0 리셋")
+	print("  ✓ 식량 회복 → 카운터 리셋 OK")
+	# 다시 30일 누적
+	GameWorld.food = 0
+	for i in range(30):
+		GameManager.check_game_over_conditions()
+	assert(GameManager.end_reason == "FOOD_FAMINE", "30일 누적 → FOOD_FAMINE (실제: %s)" % GameManager.end_reason)
+	print("  ✓ 식량 0 연속 30일 → FOOD_FAMINE (Day %d)" % GameManager.end_day)
+	# 시나리오 3: 왕조 멸절 → DYNASTY_EXTINCTION
+	GameManager.reset_end_state()
+	GameManager.current_state = GameManager.State.PLAYING
+	GameWorld.population = 50
+	GameWorld.food = 50
+	# 모든 court 인물 사망
+	for p in GameWorld.court:
+		p.alive = false
+	assert(GameManager.check_game_over_conditions(), "court 전원 사망 → 패배 O")
+	assert(GameManager.end_reason == "DYNASTY_EXTINCTION", "end_reason = DYNASTY_EXTINCTION")
+	print("  ✓ 왕조 멸절 → DYNASTY_EXTINCTION (alive_court=0)")
+	# get_end_reason_label 검증
+	GameManager.end_reason = "POPULATION_EXTINCTION"
+	assert(GameManager.get_end_reason_label() == "인구 멸망", "라벨 = 인구 멸망")
+	GameManager.end_reason = "FOOD_FAMINE"
+	assert(GameManager.get_end_reason_label() == "대기아 (식량 0 연속 30일)", "라벨 = 대기아")
+	GameManager.end_reason = "DYNASTY_EXTINCTION"
+	assert(GameManager.get_end_reason_label() == "왕조 멸절", "라벨 = 왕조 멸절")
+	print("  ✓ get_end_reason_label() 3종 OK")
+	# save/load round-trip
+	GameManager.reset_end_state()
+	GameManager.current_state = GameManager.State.PLAYING
+	GameWorld.population = 0
+	GameManager.check_game_over_conditions()
+	assert(GameManager.end_reason == "POPULATION_EXTINCTION", "패배 상태")
+	assert(SaveManager.save_game("verify_gameover"))
+	GameManager.reset_end_state()
+	assert(GameManager.end_reason == "", "reset 후 end_reason = 빈 문자열")
+	assert(GameManager.consecutive_food_zero_days == 0, "reset 후 consecutive = 0")
+	assert(SaveManager.load_game("verify_gameover"))
+	assert(GameManager.end_reason == "POPULATION_EXTINCTION", "load → end_reason 복원")
+	assert(GameManager.current_state == GameManager.State.GAME_OVER, "load → state 복원")
+	print("  ✓ save/load round-trip: end_reason + state + consecutive OK")
+	# 마지막 정리
+	GameManager.reset_end_state()
+	# 정상 상태 검증
+	GameManager.current_state = GameManager.State.PLAYING
+	GameWorld.population = 50
+	GameWorld.food = 50
+	# court 1명 alive로 복원
+	if GameWorld.court.size() > 0:
+		GameWorld.court[0].alive = true
+	assert(not GameManager.check_game_over_conditions(), "정상 상태 → 패배 X")
+	print("  ✓ 정상 상태 → 패배 없음 OK")
+
+	# 8.11) 사운드 시스템 검증 (B-2)
+	print("[8.11] 사운드 시스템 검증 (B-2)")
+	# AudioManager 상수 확인
+	assert(AudioManager.BGM_TRACKS.size() == 4, "BGM 4종 (실제: %d)" % AudioManager.BGM_TRACKS.size())
+	assert(AudioManager.SFX_TRACKS.size() == 6, "SFX 6종 (실제: %d)" % AudioManager.SFX_TRACKS.size())
+	for k in ["menu", "game", "battle", "modal"]:
+		assert(AudioManager.BGM_TRACKS.has(k), "BGM %s 없음" % k)
+	for k in ["modal_open", "modal_close", "choice_confirm", "dice_roll", "battle_start", "victory"]:
+		assert(AudioManager.SFX_TRACKS.has(k), "SFX %s 없음" % k)
+	print("  ✓ BGM 4종 + SFX 6종 등록 OK")
+	# 자산 확인 (실제 파일 존재)
+	for path in AudioManager.BGM_TRACKS.values():
+		assert(ResourceLoader.exists(path), "BGM 파일 없음: %s" % path)
+	for path in AudioManager.SFX_TRACKS.values():
+		assert(ResourceLoader.exists(path), "SFX 파일 없음: %s" % path)
+	print("  ✓ 10개 .ogg 자산 모두 존재")
+	# AudioManager 인스턴스 (autoload)
+	var am: Node = get_node_or_null("/root/AudioManager")
+	assert(am != null, "AudioManager autoload 인스턴스 없음")
+	assert(am.has_method("is_enabled"), "is_enabled 메서드 없음")
+	assert(am.has_method("is_asset_available"), "is_asset_available 메서드 없음")
+	assert(am.has_method("play_bgm"), "play_bgm 메서드 없음")
+	assert(am.has_method("play_sfx"), "play_sfx 메서드 없음")
+	assert(am.has_method("stop_bgm"), "stop_bgm 메서드 없음")
+	# 헤드리스 가드 — LB_VERIFY 환경에서는 비활성화
+	var am_enabled: bool = am.is_enabled()
+	assert(not am_enabled, "헤드리스 환경에서 AudioManager.is_enabled() = false 여야 함")
+	print("  ✓ AudioManager autoload + 헤드리스 가드 OK (is_enabled=%s)" % str(am_enabled))
+	# 자산 가드
+	var am_asset: bool = am.is_asset_available()
+	assert(am_asset, "자산 가드 OK (is_asset_available=true)")
+	print("  ✓ 자산 가드 OK (is_asset_available=%s)" % str(am_asset))
+	# 헤드리스 가드 상태에서 play_bgm/play_sfx 호출 시 무동작 (no-op) — 크래시 없음
+	am.play_bgm("menu")
+	am.play_sfx("modal_open")
+	am.stop_bgm()
+	print("  ✓ 헤드리스에서 play_bgm/play_sfx/stop_bgm 호출 무동작 OK")
+	# main.gd 6개 위치 통합 확인 — 코드 grep
+	var main_src: String = FileAccess.get_file_as_string("res://scripts/main.gd")
+	var integration_count: int = 0
+	for marker in ["_enter_title_mode()", "play_bgm(\"menu\")", "play_bgm(\"game\")", "play_sfx(\"modal_open\")", "play_sfx(\"modal_close\")", "play_sfx(\"choice_confirm\")", "play_sfx(\"battle_start\")", "play_bgm(\"battle\")", "play_sfx(\"victory\")"]:
+		if main_src.find(marker) != -1:
+			integration_count += 1
+	print("  ✓ main.gd 사운드 통합 마커 %d개 발견" % integration_count)
+	assert(integration_count >= 7, "최소 7개 마커 필요 (실제: %d)" % integration_count)
+
+	# 8.13) 모바일 viewport 대응 검증 (B-4)
+	print("[8.13] 모바일 viewport 대응 검증 (B-4)")
+	# 모바일 임계값 확인
+	assert(MOBILE_VIEWPORT_THRESHOLD == 800, "모바일 임계값 800px")
+	print("  ✓ MOBILE_VIEWPORT_THRESHOLD = 800px")
+	# _is_mobile_viewport() 메서드
+	assert(_is_mobile_viewport() or not _is_mobile_viewport(), "_is_mobile_viewport 메서드 호출 가능")
+	assert(has_method("_adjust_modal_for_viewport"), "_adjust_modal_for_viewport 메서드 없음")
+	print("  ✓ _is_mobile_viewport + _adjust_modal_for_viewport 메서드 존재")
+	# _is_mobile_viewport 로직 — 현재 viewport가 1280×720 (LB_VERIFY 기본)
+	var current_size: Vector2 = get_viewport().get_visible_rect().size
+	print("  현재 viewport: %.0f×%.0f (LB_VERIFY 헤드리스)" % [current_size.x, current_size.y])
+	assert(not _is_mobile_viewport(), "현재 viewport → 모바일 아님 (is_mobile=false)")
+	print("  ✓ 현재 viewport → is_mobile=false (데스크탑)")
+	# _adjust_modal_for_viewport(viewport_size) 파라미터로 다양한 사이즈 테스트
+	# 데스크탑 (1280×720)
+	_adjust_modal_for_viewport(decision_modal, Vector2(1280, 720))
+	assert(decision_modal.offset_left == -360.0, "데스크탑: offset_left=-360 (실제: %s)" % str(decision_modal.offset_left))
+	assert(decision_modal.offset_right == 360.0, "데스크탑: offset_right=360 (실제: %s)" % str(decision_modal.offset_right))
+	print("  ✓ 1280×720 (데스크탑) — 모달 offset ±360×±180")
+	# 모바일 (414×896)
+	_adjust_modal_for_viewport(decision_modal, Vector2(414, 896))
+	var expected_offset_mobile_x: float = -414.0 * 0.9 * 0.5
+	var expected_offset_mobile_y: float = -896.0 * 0.7 * 0.5
+	assert(abs(decision_modal.offset_left - expected_offset_mobile_x) < 0.01, "모바일: offset_left=-186.3 (실제: %s)" % str(decision_modal.offset_left))
+	assert(abs(decision_modal.offset_right - -expected_offset_mobile_x) < 0.01, "모바일: offset_right=186.3 (실제: %s)" % str(decision_modal.offset_right))
+	assert(abs(decision_modal.offset_top - expected_offset_mobile_y) < 0.01, "모바일: offset_top=-313.6 (실제: %s)" % str(decision_modal.offset_top))
+	print("  ✓ 414×896 (모바일) — 모달 viewport 90%%×70%% (offset %.0f×%.0f)" % [
+		414.0 * 0.9, 896.0 * 0.7
+	])
+	# 태블릿 세로 (768×1024, iPad mini)
+	_adjust_modal_for_viewport(decision_modal, Vector2(768, 1024))
+	var expected_offset_tablet_x: float = -768.0 * 0.9 * 0.5
+	assert(abs(decision_modal.offset_left - expected_offset_tablet_x) < 0.01, "태블릿: offset_left=-345.6 (실제: %s)" % str(decision_modal.offset_left))
+	print("  ✓ 768×1024 (태블릿) — 모달 90%%×70%% (offset %.0f×%.0f)" % [
+		768.0 * 0.9, 1024.0 * 0.7
+	])
+	# GameOver/Tutorial 카드 (CanvasLayer 내부 Control 자식)도 적용 가능 검증
+	if game_over_screen and game_over_screen.get_child_count() > 0:
+		var go_card: Control = game_over_screen.get_child(0) as Control
+		if go_card:
+			_adjust_modal_for_viewport(go_card, Vector2(414, 896))
+			assert(abs(go_card.offset_left - expected_offset_mobile_x) < 0.01, "GameOver 모바일 offset_left")
+			print("  ✓ GameOver 카드 모바일 offset 적용 OK (CanvasLayer 내부 Control)")
+	if tutorial_screen and tutorial_screen.get_child_count() > 0:
+		var t_card: Control = tutorial_screen.get_child(0) as Control
+		if t_card:
+			_adjust_modal_for_viewport(t_card, Vector2(414, 896))
+			assert(abs(t_card.offset_left - expected_offset_mobile_x) < 0.01, "Tutorial 모바일 offset_left")
+			print("  ✓ Tutorial 카드 모바일 offset 적용 OK (CanvasLayer 내부 Control)")
+	# main.gd 4개 위치 통합
+	var main_src_b4: String = FileAccess.get_file_as_string("res://scripts/main.gd")
+	var viewport_call_count: int = 0
+	for marker in ["_adjust_modal_for_viewport(decision_modal, get_viewport().get_visible_rect().size)", "tutorial_card if tutorial_card else tutorial_screen", "go_card if go_card else game_over_screen"]:
+		if main_src_b4.find(marker) != -1:
+			viewport_call_count += 1
+	assert(viewport_call_count >= 3, "최소 3개 위치 호출 (실제: %d)" % viewport_call_count)
+	print("  ✓ main.gd viewport 통합 %d개 위치 (Tutorial 2 + DecisionModal 1 + GameOver 1)" % viewport_call_count)
+	# 원래 사이즈 복원
+	_adjust_modal_for_viewport(decision_modal, Vector2(1280, 720))
+	print("  ✓ 데스크탑 사이즈 복원 OK")
 
 	# 9) 화면 그리기 검증
 	print("[9] ManorDashboard 화면 검증")

@@ -1,0 +1,77 @@
+[gd_scene load_steps=2 format=3 uid="uid://bgameoverv41"]
+
+[ext_resource type="Script" path="res://scripts/game_over.gd" id="1_go"]
+
+[node name="GameOver" type="CanvasLayer"]
+layer = 120
+visible = false
+script = ExtResource("1_go")
+
+[node name="DimBG" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.88)
+mouse_filter = 0
+
+[node name="Card" type="PanelContainer" parent="."]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -300.0
+offset_right = 300.0
+offset_bottom = 300.0
+mouse_filter = 0
+
+[node name="Margin" type="MarginContainer" parent="Card"]
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="Card/Margin"]
+theme_override_constants/separation = 12
+
+[node name="HeaderRow" type="HBoxContainer" parent="Card/Margin/VBox"]
+theme_override_constants/separation = 16
+
+[node name="IconLabel" type="Label" parent="Card/Margin/VBox/HeaderRow"]
+text = "💀"
+custom_minimum_size = Vector2(64, 64)
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 48
+
+[node name="TitleLabel" type="Label" parent="Card/Margin/VBox/HeaderRow"]
+text = "패배 — 영지 멸망"
+size_flags_horizontal = 3
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 22
+
+[node name="DescriptionLabel" type="Label" parent="Card/Margin/VBox"]
+text = "설명"
+custom_minimum_size = Vector2(0, 90)
+autowrap_mode = 3
+theme_override_font_sizes/font_size = 14
+
+[node name="DayLabel" type="Label" parent="Card/Margin/VBox"]
+text = "생존 일수: 0일"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 16
+
+[node name="StatsTitle" type="Label" parent="Card/Margin/VBox"]
+text = "📊 종료 통계"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 14
+
+[node name="StatsVBox" type="VBoxContainer" parent="Card/Margin/VBox"]
+theme_override_constants/separation = 4
+
+[node name="ButtonRow" type="HBoxContainer" parent="Card/Margin/VBox"]
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="ReturnButton" type="Button" parent="Card/Margin/VBox/ButtonRow"]
+custom_minimum_size = Vector2(180, 48)
+text = "🏠 메인 메뉴로"

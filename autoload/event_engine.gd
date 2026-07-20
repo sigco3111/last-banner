@@ -94,6 +94,9 @@ func _on_day(_d: int) -> void:
 	print("[EventEngine] Day %d — 자원 변동: gold %+d, food %+d" % [
 		_d, GameWorld.day_gold_change, GameWorld.day_food_change
 	])
+	# v4.1 B-3: 일간 게임 오버 평가 (식량 0 연속 / 인구 0 / 왕조 멸절)
+	if GameManager and GameManager.current_state == GameManager.State.PLAYING:
+		GameManager.check_game_over_conditions()
 
 func _on_season(season: String) -> void:
 	# winter 진입 시 1회만 WINTER_PREPARATION push

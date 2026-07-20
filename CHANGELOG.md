@@ -4,6 +4,98 @@
 
 ---
 
+## [4.1.0-alpha] - 2026-07-20 — "Phase B 진행 중"
+
+### 추가 (Added)
+
+#### B-1. 튜토리얼 4단계 오버레이
+
+- `scenes/tutorial.tscn` (신규) — CanvasLayer layer=15, DimBG + Card(Margin/VBox: HeaderRow + ProgressLabel + MessageLabel + HintLabel + ButtonRow[Skip/Next])
+- `scripts/tutorial.gd` (신규) — 4단계 STEPS 데이터 + 8초 자동 진행 + seen 플래그 + force 옵션 + tutorial_finished/tutorial_skipped 시그널
+- `GameManager.tutorial_seen` 필드 + save/load 통합
+- `main.tscn` TutorialLayer 추가 + `_enter_game_mode` 자동 호출
+- `title_screen.tscn` "❓ 튜토리얼 다시보기" 버튼 + `retutorial_requested` 시그널
+- **4단계 컨텐츠**:
+  1. 🤖 자동 진행 + 위임 (P 키 토글)
+  2. 📜 결정 큐 11종 사건
+  3. 💰 자원 변동 + 차트
+  4. ⚔️ 4가지 시스템 (용병/왕조/빌딩/차트)
+
+#### B-2. 사운드 시스템
+
+- `assets/audio/music/` 신규 — Wesnoth 4곡 (menu/game/battle/modal) 9.7 MB
+- `assets/audio/sfx/` 신규 — sparklinlabs RPG 6곡 (modal_open/close/choice_confirm/dice_roll/battle_start/victory) 70 KB CC0
+- `autoload/audio_manager.gd` (신규) — BGM 4종 + SFX 6종 + 헤드리스 가드 (`DisplayServer.get_name() == "headless"`) + 자산 가드 + 페이드 트윈 + SFX 풀링 (8개)
+- `project.godot` AudioManager autoload 등록
+- **main.gd 통합 9개 마커**:
+  - `_enter_title_mode` → `play_bgm("menu")`
+  - `_enter_game_mode` → `play_bgm("game")`
+  - `_show_next_decision` → `play_sfx("modal_open")`
+  - `_on_choice_pressed` → `play_sfx("choice_confirm")` + battle 분기 시 `play_sfx("battle_start")` + `play_bgm("battle")`
+  - `_on_choice_pressed` 종료부 → `play_sfx("modal_close")`
+  - `_on_auto_skip` → `play_sfx("modal_close")`
+  - `_on_game_ended` → `play_sfx("victory")` + `stop_bgm(true)`
+
+#### B-3. 게임 종료 조건 + 엔딩 화면
+
+- `GameManager` 확장:
+  - 상수: `CONSECUTIVE_FOOD_ZERO_DAYS_LIMIT = 30`, `POPULATION_EXTINCTION_THRESHOLD = 0`
+  - 필드: `end_reason: String`, `end_day: int`, `end_stats: Dictionary`, `consecutive_food_zero_days: int`
+  - 시그널: `game_ended(reason, stats)`
+  - 메서드: `check_game_over_conditions()` + `end_game(reason)` + `reset_end_state()` + `get_end_reason_label()`
+- `EventEngine._on_day` — 일간 게임 오버 평가 (food=0 연속 / population=0 / court 전원 사망)
+- `scenes/game_over.tscn` (신규) — CanvasLayer layer=120, DimBG + Card(HeaderRow + DescriptionLabel + DayLabel + StatsTitle + StatsVBox + ButtonRow[Return])
+- `scripts/game_over.gd` (신규) — 3종 라벨/설명 (REASON_LABELS / REASON_DESCRIPTIONS) + show_game_over() + return_to_title_requested 시그널
+- `main.tscn` GameOverLayer 추가
+- `main.gd` game_ended 시그널 → show_game_over + 자동 진행 OFF + BGM 정지 / return_to_title → autosave + enter_title_mode
+- **3종 패배 조건**:
+  1. **인구 멸망** (population ≤ 0) — 즉시
+  2. **대기아** (food ≤ 0 연속 30일) — 회복 시 카운터 리셋
+  3. **왕조 멸절** (court alive_count = 0) — 즉시
+
+#### B-4. 모바일/태블릿 viewport 대응
+
+- `scenes/main.tscn` — TopResourceBar 자식 Label들에 `size_flags_horizontal=3` (FILL) + `clip_text=true` 추가 (모바일에서 overflow 방지)
+- `main.gd` 신규:
+  - 상수: `MOBILE_VIEWPORT_THRESHOLD = 800` (너비 < 800px → 모바일 모드)
+  - 메서드: `_is_mobile_viewport()` + `_adjust_modal_for_viewport(modal: Node, viewport_size: Vector2)`
+  - **3개 위치 통합**: `_show_next_decision` / `_on_game_ended` / `_on_title_retutorial` (Tutorial 2 / DecisionModal 1 / GameOver 1)
+  - **viewport 시뮬레이션**:
+    - 데스크탑 1280×720: 모달 offset ±360×±180
+    - 모바일 414×896: 모달 90%×70% (offset 373×627)
+    - 태블릿 768×1024: 모달 90%×70% (offset 691×717)
+- **CanvasLayer 내부 Card(PanelContainer) 자식 자동 탐색** + 동적 offset 조정
+
+### 변경 (Changed)
+
+- **LB_VERIFY 17단계 → 21단계 확장**:
+  - [8.10] B-1 튜토리얼 8단계
+  - [8.11] B-2 사운드 6단계
+  - [8.12] B-3 게임 오버 11단계
+  - [8.13] B-4 모바일 viewport 9단계
+- README.md v4.0 → v4.1.0 갱신 (Phase B 신규 기능 + LB_VERIFY 21단계)
+- CHANGELOG.md 신규 v4.1.0-alpha 섹션
+- main.gd `_find_nodes` — TutorialLayer/GameOverLayer/GameOver/Tutorial 노드 매핑 추가
+- main.gd `_connect_signals` — GameManager.game_ended / GameOver.return_to_title_requested 시그널 연결
+- main.gd `_enter_game_mode` — Tutorial 카드 viewport 조정 + BGM 게임
+- main.gd `_on_title_menu_pressed` — autosave 보존 (게임 오버도 동일)
+
+### 수정 (Fixed)
+
+- 결정 모달 닫힘 SFX (modal_close) — `_on_choice_pressed` / `_on_auto_skip` 양쪽에서 호출
+- 모바일 viewport 대응 — CanvasLayer 직접 전달 시 type error → `Node` 타입으로 확장
+- LB_VERIFY [8.13] 태블릿 사이즈 — `1024×768`은 800 임계값 초과라 데스크탑 모드 → `768×1024`로 변경 (iPad mini 세로)
+
+### 기술 부채 (Tech Debt) — v4.2.0으로 이월
+
+- ⏳ UI 안전 카드화 (회귀 교훈 반영 + anchor 4개 명시)
+- ⏳ GitHub Actions CI (macOS + LB_VERIFY 자동)
+- ⏳ Gut 단위 테스트 9 → 30+ 확장
+- ⏳ 맵 5종 / 사건 30+ / 인격 시스템 / 기술 트리 (Phase D)
+- ⏳ 스토리 모드 / Godot 5.x / 멀티플랫폼 (Phase E)
+
+---
+
 ## [4.0.0] - 2026-07-20 — "Phase A 완성 + UI 1차 복귀"
 
 ### 추가 (Added)

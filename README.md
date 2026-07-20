@@ -25,9 +25,28 @@
 
 ---
 
-## 🆕 v4.0.0 신규 기능
+## 🆕 v4.1.0-alpha 신규 기능 (진행 중)
 
-### Phase A — 게임 깊이 확장
+### Phase B — 인디 완성
+
+- **B-1. 튜토리얼 4단계 오버레이** — 새 게임 첫 진입 시 자동 표시, `GameManager.tutorial_seen` 1회 한정, "튜토리얼 다시보기" 버튼
+  - 🤖 자동 진행 / 📜 결정 큐 11종 / 💰 자원 변동 / ⚔️ 4가지 시스템
+- **B-2. 사운드 (BGM 4종 + SFX 6종)** — Wesnoth music (9.7 MB) + sparklinlabs RPG sfx (70 KB CC0)
+  - 헤드리스 자동 가드 (`DisplayServer.get_name() == "headless"`) + 자산 가드 + 페이드 트윈 + SFX 풀링 8개
+  - main.gd 9개 마커 통합 (모달 열기/닫기/결정/배틀/게임오버)
+- **B-3. 게임 종료 조건 + 엔딩 화면** — 3종 패배
+  - 💀 인구 멸망 (population ≤ 0 즉시)
+  - 🌾 대기아 (food ≤ 0 연속 30일, 회복 시 리셋)
+  - 👑 왕조 멸절 (court alive_count = 0 즉시)
+  - CanvasLayer layer=120 게임 오버 화면 + 8종 통계 + 메인 메뉴 복귀
+- **B-4. 모바일/태블릿 viewport 대응** — `MOBILE_VIEWPORT_THRESHOLD = 800`
+  - 데스크탑 1280×720: 모달 ±360×±180
+  - 모바일 414×896: 모달 viewport 90%×70% (offset 373×627)
+  - 태블릿 768×1024: 모달 viewport 90%×70% (offset 691×717)
+  - TopResourceBar 자식 Label에 `size_flags_horizontal=3` (FILL) + `clip_text=true` (overflow 방지)
+
+### v4.0.0 Phase A
+
 - **A-1. 용병 Roster** (9-class tier) — bowman / swordsman / pikeman / sergeant / fencer / crossbow / cavalry / captain / paladin
   - 시그널 3종 (`mercenary_joined/left/injured`)
   - 16시간마다 용병 자원 제안 (tier 가중치 60/30/10)
@@ -90,10 +109,10 @@ open "build/macos/Last Banner.app"          # 더블클릭과 동일
 ### 헤드리스 검증 (LB_VERIFY=1)
 ```bash
 cd ~/work/last-banner
-LB_VERIFY=1 godot --headless    # 13+4단계 자동 검증 (~5~15초)
+LB_VERIFY=1 godot --headless    # 13+8단계 자동 검증 (~5~15초)
 ```
 
-**검증 단계 (17종)**:
+**검증 단계 (21종)**:
 1. 새 게임 초기 상태 (gold=200 food=100 pop=50)
 2. 1일 시뮬 (1440분)
 3. 자원 변동
@@ -112,6 +131,10 @@ LB_VERIFY=1 godot --headless    # 13+4단계 자동 검증 (~5~15초)
 16. A-1 용병 시스템 (9-class / 충성도 이탈 / round-trip)
 17. A-2 왕조/후계자 (court 5명 / SWAP / NURTURE / BETRAYAL_CRUSHER)
 18. A-3 빌딩 시스템 (4종 × Lv 1~3 / 비용 곡선 / round-trip)
+19. **B-1 튜토리얼** 8단계 (시그널 / seen 플래그 / 단계 진행 / round-trip)
+20. **B-2 사운드** 6단계 (BGM/SFX 자산 / 헤드리스 가드 / 9개 통합 마커)
+21. **B-3 게임 오버** 11단계 (3종 패배 / 식량 회복 리셋 / round-trip)
+22. **B-4 모바일 viewport** 9단계 (데스크탑/모바일/태블릿 offset 시뮬레이션)
 
 ---
 
@@ -198,6 +221,35 @@ DecisionQueue.push(CRITICAL) ► GameManager.pause_for_decision()
 - **결정 큐 사건 11종**: VISITOR / BANDIT_RAID / DIPLOMACY / FOOD_SHORTAGE / PEASANT_PETITION / WINTER_PREPARATION / MERCHANT_CARAVAN / PLAGUE / MERCENARY_OFFER / SUCCESSION_AUDIT / HEIR_BETRAYAL / BUILD_CONSTRUCTION
 - **결과 핸들러 27+종**: GameWorld.RESULT_EFFECTS 통합 dict
 
+### 4. 게임 오버 화면 (v4.1 신규)
+
+```
+┌────────────────────────────────────────────┐
+│ 💀 인구 멸망 — 인구의 멸망                    │ ← 패배 아이콘 + 이유
+│                                              │
+│ "전쟁·역병·기근이 겹치며 백성이               │
+│  뿔뿔이 흘어졌습니다. ..."                   │ ← REASON_DESCRIPTIONS
+│                                              │
+│ 생존 일수: 7일                                 │
+│ 📊 종료 통계                                  │
+│   💰 금: 990                                  │
+│   🌾 식량: 50                                 │
+│   👥 인구: 0                                  │
+│   ⭐ 명성: 10                                 │
+│   🏰 요새 Lv 1                               │
+│   ⚔️ 생존 용병: 6명                           │
+│   👑 생존 왕조 인물: 5명                      │
+│                                              │
+│ [🏠 메인 메뉴로]                              │
+└────────────────────────────────────────────┘
++ DimBG (검은 반투명 0.88 alpha)
+```
+
+**3종 패배 조건**:
+- 💀 **인구 멸망** — population ≤ 0 즉시
+- 🌾 **대기아** — food ≤ 0 연속 30일 (회복 시 카운터 리셋)
+- 👑 **왕조 멸절** — court alive_count = 0 즉시
+
 ---
 
 ## ⌨️ 단축키
@@ -253,9 +305,10 @@ LB_VERIFY=1 godot --headless    # 5~15초
 | v2 | 클린 리셋 (단 1 commit) — Wesnoth 2D PNG (5 factions, 432 자산) + 결정 큐 모든 우선순위 모달 |
 | v3.0 | 전투 화면 (BattleScene 3상태 + 그리드 + 손실 카드) |
 | v3.1 | 라인 차트 + 호버 인터랙션 + 시간대 그라디언트 + 타이틀 화면 |
-| v4.0 | **Phase A 4단계 (사건 4종 + 용병 9-class + 왕조 court + 빌딩 4종) + UI 1차 복귀** |
+| v4.0 | **Phase A 4단계** (사건 4종 + 용병 9-class + 왕조 court + 빌딩 4종) + UI 1차 복귀 |
+| v4.1 | **Phase B 4단계** (튜토리얼 + 사운드 + 게임 종료 + 모바일 viewport) — 진행 중 |
 
-자세한 마이그레이션 로그는 [`CHANGELOG.md`](CHANGELOG.md) 참조.
+자세한 마이그레이션 로그는 [`CHANGELOG.md`](./CHANGELOG.md) 참조.
 
 ---
 

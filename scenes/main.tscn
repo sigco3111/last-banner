@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3 uid="uid://bmainhubv2"]
+[gd_scene load_steps=7 format=3 uid="uid://bmainhubv2"]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/manor_dashboard.tscn" id="2_dash"]
 [ext_resource type="PackedScene" path="res://scenes/title_screen.tscn" id="3_title"]
 [ext_resource type="PackedScene" path="res://scenes/battle_scene.tscn" id="4_battle"]
 [ext_resource type="PackedScene" path="res://scenes/tutorial.tscn" id="5_tutorial"]
+[ext_resource type="PackedScene" path="res://scenes/game_over.tscn" id="6_gameover"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -41,32 +42,43 @@ theme_override_constants/separation = 16
 
 [node name="TimeLabel" type="Label" parent="UI/TopResourceBar/ResourceRow"]
 text = "Day 0  |  00:00  |  자동 진행: ON"
-custom_minimum_size = Vector2(240, 0)
+custom_minimum_size = Vector2(200, 0)
+size_flags_horizontal = 3
+clip_text = true
 theme_override_font_sizes/font_size = 16
 
 [node name="GoldLabel" type="Label" parent="UI/TopResourceBar/ResourceRow"]
 text = "💰 금: 200"
-custom_minimum_size = Vector2(120, 0)
+custom_minimum_size = Vector2(110, 0)
+size_flags_horizontal = 3
+clip_text = true
 theme_override_font_sizes/font_size = 16
 
 [node name="FoodLabel" type="Label" parent="UI/TopResourceBar/ResourceRow"]
 text = "🌾 식량: 100"
-custom_minimum_size = Vector2(120, 0)
+custom_minimum_size = Vector2(110, 0)
+size_flags_horizontal = 3
+clip_text = true
 theme_override_font_sizes/font_size = 16
 
 [node name="PopLabel" type="Label" parent="UI/TopResourceBar/ResourceRow"]
 text = "👥 인구: 50"
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(90, 0)
+size_flags_horizontal = 3
+clip_text = true
 theme_override_font_sizes/font_size = 16
 
 [node name="ProsperLabel" type="Label" parent="UI/TopResourceBar/ResourceRow"]
 text = "⭐ 명성: 10"
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(90, 0)
+size_flags_horizontal = 3
+clip_text = true
 theme_override_font_sizes/font_size = 16
 
 [node name="LastEventLabel" type="Label" parent="UI/TopResourceBar/ResourceRow"]
 text = "🪵 최근: (없음)"
 size_flags_horizontal = 3
+clip_text = true
 theme_override_font_sizes/font_size = 14
 
 [node name="BottomButtonRow" type="PanelContainer" parent="UI"]
@@ -109,6 +121,11 @@ layer = 100
 layer = 15
 
 [node name="Tutorial" parent="TutorialLayer" instance=ExtResource("5_tutorial")]
+
+[node name="GameOverLayer" type="CanvasLayer" parent="."]
+layer = 120
+
+[node name="GameOver" parent="GameOverLayer" instance=ExtResource("6_gameover")]
 
 [node name="DimBG" type="ColorRect" parent="ModalLayer"]
 anchor_right = 1.0
