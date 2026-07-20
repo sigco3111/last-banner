@@ -193,12 +193,11 @@ func _on_title_start_new() -> void:
 	_enter_game_mode()
 
 func _on_title_continue() -> void:
-	print("[Main] 이어하기 — 최근 저장 로드")
-	var saves: Array = SaveManager.list_saves()
-	if not saves.is_empty():
-		var latest: String = saves[0]
-		SaveManager.load_game(latest)
-		GameManager.start_new_game(latest)
+	print("[Main] 이어하기 — autosave 로드")
+	# v4.1.0: 단일 슬롯 — autosave 자동 로드 (list_saves 의존 제거)
+	if SaveManager.has_save():
+		SaveManager.load_game()   # 단일 슬롯
+		GameManager.start_new_game(SaveManager.SAVE_SLOT)
 		_enter_game_mode()
 	else:
 		print("[Main] 저장 없음 → 게임 시작")
@@ -1370,6 +1369,54 @@ func _run_verify() -> void:
 	# 원래 사이즈 복원
 	_adjust_modal_for_viewport(decision_modal, Vector2(1280, 720))
 	print("  ✓ 데스크탑 사이즈 복원 OK")
+
+	# 8.14) 단일 슬롯 정책 검증 (v4.1.0)
+	print("[8.14] 단일 슬롯 정책 검증 (v4.1.0)")
+	# SAVE_SLOT 상수
+	assert(SaveManager.SAVE_SLOT == "autosave", "SAVE_SLOT 상수 (실제: %s)" % SaveManager.SAVE_SLOT)
+	print("  ✓ SaveManager.SAVE_SLOT = \"autosave\"")
+	# has_save() 메서드
+	assert(SaveManager.has_method("has_save"), "has_save 메서드 없음")
+	assert(SaveManager.has_method("delete_save"), "delete_save 메서드 없음")
+	print("  ✓ has_save + delete_save API 존재")
+	# list_saves는 0 또는 1개 (단일 슬롯)
+	var saves_list: Array = SaveManager.list_saves()
+	assert(saves_list.size() <= 1, "단일 슬롯 정책 — list_saves ≤ 1 (실제: %d)" % saves_list.size())
+	print("  ✓ list_saves ≤ 1 (실제: %d) — 단일 슬롯 OK" % saves_list.size())
+	# save_game / load_game — slot 인자 무시되어도 정상 작동
+	assert(SaveManager.save_game("any_slot"), "save_game(any_slot) OK (무시됨)")
+	assert(SaveManager.has_save(), "저장 후 has_save=true")
+	var saves_after2: Array = SaveManager.list_saves()
+	assert(saves_after2.size() == 1, "저장 후 list_saves = 1 (실제: %d)" % saves_after2.size())
+	assert(saves_after2[0] == SaveManager.SAVE_SLOT, "list_saves[0] = SAVE_SLOT (실제: %s)" % saves_after2[0])
+	print("  ✓ save_game(\"any_slot\") → autosave에 저장 (인자 무시 OK)")
+	# load_game — 어떤 인자든 autosave에서 로드
+	assert(SaveManager.load_game("any_slot"), "load_game(any_slot) OK (무시됨)")
+	print("  ✓ load_game(\"any_slot\") → autosave에서 로드 OK")
+	# delete_save + has_save
+	assert(SaveManager.delete_save(), "delete_save OK")
+	assert(not SaveManager.has_save(), "삭제 후 has_save=false")
+	var saves_after_delete: Array = SaveManager.list_saves()
+	assert(saves_after_delete.is_empty(), "삭제 후 list_saves = []")
+	print("  ✓ delete_save + has_save=false + list_saves=[]")
+	# main.gd _on_title_continue는 list_saves 대신 has_save 사용
+	var main_src_slot: String = FileAccess.get_file_as_string("res://scripts/main.gd")
+	var idx_continue: int = main_src_slot.find("func _on_title_continue")
+	var idx_next_func: int = main_src_slot.find("\nfunc ", idx_continue + 1)
+	var continue_body: String = main_src_slot.substr(idx_continue, idx_next_func - idx_continue)
+	assert(continue_body.find("SaveManager.has_save()") != -1, "_on_title_continue has_save 사용")
+	assert(continue_body.find("SaveManager.list_saves()") == -1, "_on_title_continue에서 list_saves 제거됨")
+	assert(continue_body.find("SaveManager.load_game()") != -1, "_on_title_continue 단일 슬롯 로드")
+	print("  ✓ main.gd _on_title_continue 단일 슬롯 코드 OK (has_save + load_game)")
+	# title_screen.gd — _refresh_continue_button가 has_save 사용
+	var title_src: String = FileAccess.get_file_as_string("res://scripts/title_screen.gd")
+	var idx_refresh: int = title_src.find("func _refresh_continue_button")
+	var idx_next_func2: int = title_src.find("\nfunc ", idx_refresh + 1)
+	var refresh_body: String = title_src.substr(idx_refresh, idx_next_func2 - idx_refresh)
+	assert(refresh_body.find("SaveManager.has_save()") != -1, "_refresh_continue_button has_save 사용")
+	assert(refresh_body.find("list_saves()") == -1, "_refresh_continue_button에서 list_saves 제거됨")
+	assert(refresh_body.find("(%d개 저장)") == -1, "'N개 저장' 표시 제거됨")
+	print("  ✓ title_screen _refresh_continue_button 단일 슬롯 UI OK")
 
 	# 9) 화면 그리기 검증
 	print("[9] ManorDashboard 화면 검증")

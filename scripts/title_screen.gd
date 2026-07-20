@@ -59,17 +59,22 @@ func _connect_signals() -> void:
 		quit_button.pressed.connect(_on_quit_pressed)
 
 func _refresh_continue_button() -> void:
-	var saves: Array = SaveManager.list_saves()
+	# v4.1.0: 단일 슬롯 — autosave 1개만 존재
+	var has_save: bool = SaveManager.has_save()
 	if continue_button:
-		if saves.is_empty():
+		if has_save:
+			continue_button.disabled = false
+			continue_button.text = "⏵ 이어하기"
+			if status_label:
+				status_label.text = "마지막 자동 저장: %s · Day %d" % [
+					Time.get_datetime_string_from_system().substr(0, 16),
+					TimeManager.day,
+				]
+		else:
 			continue_button.disabled = true
 			continue_button.text = "⏵ 이어하기 (저장 없음)"
-		else:
-			continue_button.disabled = false
-			# 가장 최근 저장 표시
-			continue_button.text = "⏵ 이어하기 (%d개 저장)" % saves.size()
 			if status_label:
-				status_label.text = "마지막 저장: %s" % saves[0]
+				status_label.text = "새 게임을 시작하세요"
 
 func _on_start_pressed() -> void:
 	print("[Title] 새로 시작")
